@@ -700,6 +700,8 @@ static void find_coarsen(logical *if_coarsen, int neltold)
 
   *if_coarsen = false;
 
+  #pragma omp parallel for default(shared) private(iel,i,iftemp) \
+                       shared(if_coarsen)
   for (iel = 0; iel < neltold; iel++) {
     if (!skip[iel]) {
       ich[iel] = 0;
@@ -713,7 +715,7 @@ static void find_coarsen(logical *if_coarsen, int neltold)
           }
         }
         if(!iftemp) {
-          *if_coarsen = true;
+          if (!(*if_coarsen)) *if_coarsen = true;
           ich[iel] = 2;
         }
       }
@@ -732,11 +734,12 @@ static void find_refine(logical *if_refine)
 
   *if_refine = false;
 
+  #pragma omp parallel for default(shared) private(iel) shared(if_refine)
   for (iel = 0; iel < nelt; iel++) {
     ich[iel] = 0;
     if (iftouch(iel)) {
       if ((xc[iel][1] - xc[iel][0]) > dlmin) {
-        *if_refine = true;
+        if (!(*if_refine)) *if_refine = true;
         ich[iel] = 4;
       }
     }
@@ -756,6 +759,8 @@ static void check_refine(logical *ifrepeat)
 
   *ifrepeat = false;
 
+  #pragma omp parallel for default(shared) private(iel,i,jface,ntemp, \
+                           iface,nntemp) shared(ifrepeat)
   for (iel = 0; iel < nelt; iel++) {
     // if iel is marked to be refined
     if (ich[iel] == 4) {
@@ -769,7 +774,7 @@ static void check_refine(logical *ifrepeat)
           ich[iel] = 0;
           // the large size neighbor ntemp is marked to be refined
           if (ich[ntemp] != 4) {
-            *ifrepeat = true;
+            if (!(*ifrepeat)) *ifrepeat = true;
             ich[ntemp] = 4;
           }
           // check iel's neighbor, neighbored by an edge on face i, which
@@ -794,7 +799,7 @@ static void check_refine(logical *ifrepeat)
                 nntemp = sje[ntemp][iface][0][0];
                 ich[nntemp] = 4;
                 ich[iel] = 0;
-                *ifrepeat = true;
+                if (!(*ifrepeat)) *ifrepeat = true;
               }
             }
           }

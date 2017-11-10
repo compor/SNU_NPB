@@ -751,6 +751,9 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
       t3 = 0;
     }
 
+    #pragma omp parallel default(shared) private(i1,i2,i3)
+    {
+    #pragma omp for
     for (i3 = d3; i3 <= mm3-1; i3++) {
       for (i2 = d2; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
@@ -779,6 +782,7 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
       }
     }
 
+    #pragma omp for nowait
     for (i3 = 1; i3 <= mm3-1; i3++) {
       for (i2 = d2; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
@@ -810,7 +814,7 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
         }
       }
     }
-
+    } // end parallel
   }
   if (timeron) timer_stop(T_interp);
 
@@ -842,22 +846,34 @@ static void norm2u3(void *or, int n1, int n2, int n3,
   double s, a;
   int i3, i2, i1;
 
-  double dn;
+  double dn, max_rnmu;
 
   if (timeron) timer_start(T_norm2);
   dn = 1.0*nx*ny*nz;
 
   s = 0.0;
-  *rnmu = 0.0;
+  max_rnmu = 0.0;
+  #pragma omp parallel default(shared) private(i1,i2,i3,a) reduction(+:s)
+  {
+    double my_rnmu = 0.0;
+    #pragma omp for nowait
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 1; i1 < n1-1; i1++) {
         s = s + pow(r[i3][i2][i1], 2.0);
         a = fabs(r[i3][i2][i1]);
-        if (a > *rnmu) *rnmu = a;
+          my_rnmu = (a > my_rnmu) ? a : my_rnmu;
       }
     }
   }
+
+    if (my_rnmu > max_rnmu) {
+      #pragma omp critical
+      max_rnmu = (my_rnmu > max_rnmu) ? my_rnmu : max_rnmu;
+    }
+  } // end parallel
+
+  *rnmu = max_rnmu;
 
   *rnm2 = sqrt(s / dn);
   if (timeron) timer_stop(T_norm2);
@@ -977,18 +993,20 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
     j3[i][0] = 0;
   }
 
+  #pragma omp for
   for (i3 = 1; i3 < n3-1; i3++) {
+    double (*zi3)[n1] = z[i3];
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 1; i1 < n1-1; i1++) {
-        if (z[i3][i2][i1] > ten[0][1]) {
-          ten[0][1] = z[i3][i2][i1];
+        if (zi3[i2][i1] > ten[0][1]) {
+          ten[0][1] = zi3[i2][i1];
           j1[0][1] = i1;
           j2[0][1] = i2;
           j3[0][1] = i3;
           bubble(ten, j1, j2, j3, mm, 1);
         }
-        if (z[i3][i2][i1] < ten[0][0]) {
-          ten[0][0] = z[i3][i2][i1];
+        if (zi3[i2][i1] < ten[0][0]) {
+          ten[0][0] = zi3[i2][i1];
           j1[0][0] = i1;
           j2[0][0] = i2;
           j3[0][0] = i3;
@@ -997,7 +1015,6 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
       }
     }
   }
-
 
   //---------------------------------------------------------------------
   // Now which of these are globally best?

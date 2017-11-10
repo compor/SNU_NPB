@@ -43,6 +43,9 @@
 #include "npbparams.h"
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 
 /*****************************************************************/
@@ -57,6 +60,9 @@
 /*****************************************************************/
 /* To disable the use of buckets, comment out the following line */
 #define USE_BUCKETS
+
+/* Uncomment below for cyclic schedule */
+/*#define SCHED_CYCLIC*/
 
 
 /******************/
@@ -169,11 +175,13 @@ int      passed_verification;
 INT_TYPE key_array[SIZE_OF_BUFFERS],    
          key_buff1[MAX_KEY],    
          key_buff2[SIZE_OF_BUFFERS],
-         partial_verify_vals[TEST_ARRAY_SIZE];
+         partial_verify_vals[TEST_ARRAY_SIZE],
+         **key_buff1_aptr = NULL;
 
 #ifdef USE_BUCKETS
-INT_TYPE bucket_size[NUM_BUCKETS],                    
+INT_TYPE **bucket_size, 
          bucket_ptrs[NUM_BUCKETS];
+#pragma omp threadprivate(bucket_ptrs)
 #endif
 
 
@@ -212,7 +220,6 @@ INT_TYPE test_index_array[TEST_ARRAY_SIZE],
                              {1317351170,995930646,1157283250,1503301535,1453734525},
          D_test_rank_array[TEST_ARRAY_SIZE] = 
                              {1,36538729,1978098519,2145192618,2147425337};
-
 
 
 /***********************/
@@ -280,17 +287,18 @@ double  timer_read( int n );
  *  exact on all systems.  This code assumes that 0.5D0 is represented exactly.
  */
 
-
 /*****************************************************************/
 /*************           R  A  N  D  L  C             ************/
 /*************                                        ************/
 /*************    portable random number generator    ************/
 /*****************************************************************/
 
-double	randlc( double *X, double *A )
-{
       static int        KS=0;
       static double	R23, R46, T23, T46;
+#pragma omp threadprivate(KS, R23, R46, T23, T46)
+
+double	randlc( double *X, double *A )
+{
       double		T1, T2, T3, T4;
       double		A1;
       double		A2;
@@ -373,6 +381,57 @@ void	create_seq( double seed, double a )
 
 
 
+/*****************************************************************/
+/*****************    Allocate Working Buffer     ****************/
+/*****************************************************************/
+void *alloc_mem( size_t size )
+{
+    void *p;
+
+    p = (void *)malloc(size);
+    if (!p) {
+        perror("Memory allocation error");
+        exit(1);
+    }
+    return p;
+}
+
+void alloc_key_buff( void )
+{
+    INT_TYPE i;
+    int      num_procs;
+
+
+#ifdef _OPENMP
+    num_procs = omp_get_max_threads();
+#else
+    num_procs = 1;
+#endif
+
+#ifdef USE_BUCKETS
+    bucket_size = (INT_TYPE **)alloc_mem(sizeof(INT_TYPE *) * num_procs);
+
+    for (i = 0; i < num_procs; i++) {
+        bucket_size[i] = (INT_TYPE *)alloc_mem(sizeof(INT_TYPE) * NUM_BUCKETS);
+    }
+
+    #pragma omp parallel for
+    for( i=0; i<NUM_KEYS; i++ )
+        key_buff2[i] = 0;
+
+#else /*USE_BUCKETS*/
+
+    key_buff1_aptr = (INT_TYPE **)alloc_mem(sizeof(INT_TYPE *) * num_procs);
+
+    key_buff1_aptr[0] = key_buff1;
+    for (i = 1; i < num_procs; i++) {
+        key_buff1_aptr[i] = (INT_TYPE *)alloc_mem(sizeof(INT_TYPE) * MAX_KEY);
+    }
+
+#endif /*USE_BUCKETS*/
+}
+
+
 
 /*****************************************************************/
 /*************    F  U  L  L  _  V  E  R  I  F  Y     ************/
@@ -382,44 +441,70 @@ void	create_seq( double seed, double a )
 void full_verify( void )
 {
     INT_TYPE    i, j;
-
+    INT_TYPE   k, k1, k2;
 
     
 /*  Now, finally, sort the keys:  */
 
+/*  Copy keys into work array; keys in key_array will be reassigned. */
+
 #ifdef USE_BUCKETS
 
-    /* key_buff2[] already has the proper information, so do nothing */
+    /* Buckets are already sorted.  Sorting keys within each bucket */
+#ifdef SCHED_CYCLIC
+    #pragma omp parallel for private(i,j,k,k1) schedule(static,1)
+#else
+    #pragma omp parallel for private(i,j,k,k1) schedule(dynamic)
+#endif
+    for( j=0; j< NUM_BUCKETS; j++ ) {
+
+        k1 = (j > 0)? bucket_ptrs[j-1] : 0;
+        for ( i = k1; i < bucket_ptrs[j]; i++ ) {
+            k = --key_buff_ptr_global[key_buff2[i]];
+            key_array[k] = key_buff2[i];
+        }
+    }
 
 #else
 
-/*  Copy keys into work array; keys in key_array will be reassigned. */
+#pragma omp parallel private(i,j,k,k1,k2)
+  {
+    #pragma omp for
     for( i=0; i<NUM_KEYS; i++ )
         key_buff2[i] = key_array[i];
 
-#endif
+    /* This is actual sorting. Each thread is responsible for 
+       a subset of key values */
+    j = omp_get_num_threads();
+    j = (MAX_KEY + j - 1) / j;
+    k1 = j * omp_get_thread_num();
+    k2 = k1 + j;
+    if (k2 > MAX_KEY) k2 = MAX_KEY;
 
-    for( i=0; i<NUM_KEYS; i++ )
-        key_array[--key_buff_ptr_global[key_buff2[i]]] = key_buff2[i];
+    for( i=0; i<NUM_KEYS; i++ ) {
+        if (key_buff2[i] >= k1 && key_buff2[i] < k2) {
+            k = --key_buff_ptr_global[key_buff2[i]];
+            key_array[k] = key_buff2[i];
+        }
+    }
+  } /*omp parallel*/
+
+#endif
 
 
 /*  Confirm keys correctly sorted: count incorrectly sorted keys, if any */
 
     j = 0;
+    #pragma omp parallel for reduction(+:j)
     for( i=1; i<NUM_KEYS; i++ )
         if( key_array[i-1] > key_array[i] )
             j++;
 
-
     if( j != 0 )
-    {
-        printf( "Full_verify: number of keys out of sort: %ld\n",
-                (long)j );
-    }
+        printf( "Full_verify: number of keys out of sort: %ld\n", (long)j );
     else
         passed_verification++;
            
-
 }
 
 
@@ -434,12 +519,11 @@ void rank( int iteration )
 {
 
     INT_TYPE    i, k;
-
     INT_TYPE    *key_buff_ptr, *key_buff_ptr2;
 
 #ifdef USE_BUCKETS
     int shift = MAX_KEY_LOG_2 - NUM_BUCKETS_LOG_2;
-    INT_TYPE    key;
+    INT_TYPE num_bucket_keys = (1L << shift);
 #endif
 
 
@@ -452,62 +536,151 @@ void rank( int iteration )
     for( i=0; i<TEST_ARRAY_SIZE; i++ )
         partial_verify_vals[i] = key_array[test_index_array[i]];
 
+
+/*  Setup pointers to key buffers  */
 #ifdef USE_BUCKETS
+    key_buff_ptr2 = key_buff2;
+#else
+    key_buff_ptr2 = key_array;
+#endif
+    key_buff_ptr = key_buff1;
+
+
+#pragma omp parallel private(i, k)
+  {
+    INT_TYPE *work_buff, m, k1, k2;
+    int myid = 0, num_procs = 1;
+
+#ifdef _OPENMP
+    myid = omp_get_thread_num();
+    num_procs = omp_get_num_threads();
+#endif
+
+
+/*  Bucket sort is known to improve cache performance on some   */
+/*  cache based systems.  But the actual performance may depend */
+/*  on cache size, problem size. */
+#ifdef USE_BUCKETS
+
+    work_buff = bucket_size[myid];
 
 /*  Initialize */
     for( i=0; i<NUM_BUCKETS; i++ )  
-        bucket_size[i] = 0;
+        work_buff[i] = 0;
 
 /*  Determine the number of keys in each bucket */
+    #pragma omp for schedule(static)
     for( i=0; i<NUM_KEYS; i++ )
-        bucket_size[key_array[i] >> shift]++;
+        work_buff[key_array[i] >> shift]++;
 
-
-/*  Accumulative bucket sizes are the bucket pointers */
+/*  Accumulative bucket sizes are the bucket pointers.
+    These are global sizes accumulated upon to each bucket */
     bucket_ptrs[0] = 0;
-    for( i=1; i< NUM_BUCKETS; i++ )  
-        bucket_ptrs[i] = bucket_ptrs[i-1] + bucket_size[i-1];
+    for( k=0; k< myid; k++ )  
+        bucket_ptrs[0] += bucket_size[k][0];
+
+    for( i=1; i< NUM_BUCKETS; i++ ) { 
+        bucket_ptrs[i] = bucket_ptrs[i-1];
+        for( k=0; k< myid; k++ )
+            bucket_ptrs[i] += bucket_size[k][i];
+        for( k=myid; k< num_procs; k++ )
+            bucket_ptrs[i] += bucket_size[k][i-1];
+    }
 
 
 /*  Sort into appropriate bucket */
+    #pragma omp for schedule(static)
     for( i=0; i<NUM_KEYS; i++ )  
     {
-        key = key_array[i];
-        key_buff2[bucket_ptrs[key >> shift]++] = key;
+        k = key_array[i];
+        key_buff2[bucket_ptrs[k >> shift]++] = k;
     }
 
-    key_buff_ptr2 = key_buff2;
+/*  The bucket pointers now point to the final accumulated sizes */
+    if (myid < num_procs-1) {
+        for( i=0; i< NUM_BUCKETS; i++ )
+            for( k=myid+1; k< num_procs; k++ )
+                bucket_ptrs[i] += bucket_size[k][i];
+    }
 
+
+/*  Now, buckets are sorted.  We only need to sort keys inside
+    each bucket, which can be done in parallel.  Because the distribution
+    of the number of keys in the buckets is Gaussian, the use of
+    a dynamic schedule should improve load balance, thus, performance     */
+
+#ifdef SCHED_CYCLIC
+    #pragma omp for schedule(static,1)
 #else
-
-    key_buff_ptr2 = key_array;
-
+    #pragma omp for schedule(dynamic)
 #endif
+    for( i=0; i< NUM_BUCKETS; i++ ) {
 
-/*  Clear the work array */
-    for( i=0; i<MAX_KEY; i++ )
-        key_buff1[i] = 0;
-
+/*  Clear the work array section associated with each bucket */
+        k1 = i * num_bucket_keys;
+        k2 = k1 + num_bucket_keys;
+        for ( k = k1; k < k2; k++ )
+            key_buff_ptr[k] = 0;
 
 /*  Ranking of all keys occurs in this section:                 */
 
-    key_buff_ptr = key_buff1;
+/*  In this section, the keys themselves are used as their 
+    own indexes to determine how many of each there are: their
+    individual population                                       */
+        m = (i > 0)? bucket_ptrs[i-1] : 0;
+        for ( k = m; k < bucket_ptrs[i]; k++ )
+            key_buff_ptr[key_buff_ptr2[k]]++;  /* Now they have individual key   */
+                                       /* population                     */
+
+/*  To obtain ranks of each key, successively add the individual key
+    population, not forgetting to add m, the total of lesser keys,
+    to the first key population                                          */
+        key_buff_ptr[k1] += m;
+        for ( k = k1+1; k < k2; k++ )
+            key_buff_ptr[k] += key_buff_ptr[k-1];
+
+    }
+
+#else /*USE_BUCKETS*/
+
+
+    work_buff = key_buff1_aptr[myid];
+
+
+/*  Clear the work array */
+    for( i=0; i<MAX_KEY; i++ )
+        work_buff[i] = 0;
+
+
+/*  Ranking of all keys occurs in this section:                 */
 
 /*  In this section, the keys themselves are used as their 
     own indexes to determine how many of each there are: their
     individual population                                       */
 
+    #pragma omp for nowait schedule(static)
     for( i=0; i<NUM_KEYS; i++ )
-        key_buff_ptr[key_buff_ptr2[i]]++;  /* Now they have individual key   */
+        work_buff[key_buff_ptr2[i]]++;  /* Now they have individual key   */
                                        /* population                     */
 
 /*  To obtain ranks of each key, successively add the individual key
     population                                                  */
 
-
     for( i=0; i<MAX_KEY-1; i++ )   
-        key_buff_ptr[i+1] += key_buff_ptr[i];  
+        work_buff[i+1] += work_buff[i];
 
+    #pragma omp barrier
+
+/*  Accumulate the global key population */
+    for( k=1; k<num_procs; k++ ) {
+        #pragma omp for nowait schedule(static)
+        for( i=0; i<MAX_KEY; i++ )
+            key_buff_ptr[i] += key_buff1_aptr[k][i];
+    }
+
+#endif /*USE_BUCKETS*/
+
+  } /*omp parallel*/
 
 /* This is the partial verify test section */
 /* Observe that test_rank_array vals are   */
@@ -706,12 +879,18 @@ int main( int argc, char **argv )
       ( "\n\n NAS Parallel Benchmarks (NPB3.3-SER) - IS Benchmark\n\n" );
     printf( " Size:  %ld  (class %c)\n", (long)TOTAL_KEYS, CLASS );
     printf( " Iterations:   %d\n", MAX_ITERATIONS );
+#ifdef _OPENMP
+    printf( " Number of available threads:  %d\n", omp_get_max_threads() );
+#endif
+    printf( "\n" );
 
     if (timer_on) timer_start( 1 );
 
 /*  Generate random number sequence and subsequent keys on all procs */
     create_seq( 314159265.00,                    /* Random number gen seed */
                 1220703125.00 );                 /* Random number gen mult */
+
+    alloc_key_buff();
     if (timer_on) timer_stop( 1 );
 
 
@@ -792,7 +971,6 @@ int main( int argc, char **argv )
        t_percent = timecounter/t_total * 100.;
        printf(" Sorting        : %8.3f (%5.2f%%)\n", timecounter, t_percent);
     }
-
 
     return 0;
          /**************************/
