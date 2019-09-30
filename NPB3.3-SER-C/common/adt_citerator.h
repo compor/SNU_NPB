@@ -26,4 +26,19 @@ unsigned int cit_step1(const struct cit_data *data);
 
 #define CIT_STEP1 cit_step1
 
+/****/
+
+#define FOR_START(IT, CIT, LB, UB, STEP, ORDER) \
+    cit_create(&(CIT), (LB), (UB), (STEP), (ORDER)); \
+    for (IT = cit_begin((CIT)); cit_is_valid((CIT)); IT = cit_next((CIT)))
+
+#define FOR_END(CIT) \
+    do { cit_destroy((CIT)); } while(0)
+
+#define FOR_RND_START(IT, CIT, LB, UB, STEP) \
+    FOR_START((IT), (CIT), (LB), (UB), (STEP), (RND)) \
+
+#define FOR_RND_END(CIT) \
+    FOR_END((CIT))
+
 #endif /* ADT_CITERATOR_H */
