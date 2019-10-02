@@ -42,28 +42,32 @@
 #include "timers.h"
 #include "print_results.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 /* common /global/ */
 double elapsed_time;
 int grid_points[3];
 logical timeron;
 
 /* common /constants/ */
-double tx1, tx2, tx3, ty1, ty2, ty3, tz1, tz2, tz3, 
-       dx1, dx2, dx3, dx4, dx5, dy1, dy2, dy3, dy4, 
-       dy5, dz1, dz2, dz3, dz4, dz5, dssp, dt, 
-       ce[5][13], dxmax, dymax, dzmax, xxcon1, xxcon2, 
+double tx1, tx2, tx3, ty1, ty2, ty3, tz1, tz2, tz3,
+       dx1, dx2, dx3, dx4, dx5, dy1, dy2, dy3, dy4,
+       dy5, dz1, dz2, dz3, dz4, dz5, dssp, dt,
+       ce[5][13], dxmax, dymax, dzmax, xxcon1, xxcon2,
        xxcon3, xxcon4, xxcon5, dx1tx1, dx2tx1, dx3tx1,
        dx4tx1, dx5tx1, yycon1, yycon2, yycon3, yycon4,
        yycon5, dy1ty1, dy2ty1, dy3ty1, dy4ty1, dy5ty1,
-       zzcon1, zzcon2, zzcon3, zzcon4, zzcon5, dz1tz1, 
-       dz2tz1, dz3tz1, dz4tz1, dz5tz1, dnxm1, dnym1, 
-       dnzm1, c1c2, c1c5, c3c4, c1345, conz1, c1, c2, 
+       zzcon1, zzcon2, zzcon3, zzcon4, zzcon5, dz1tz1,
+       dz2tz1, dz3tz1, dz4tz1, dz5tz1, dnxm1, dnym1,
+       dnzm1, c1c2, c1c5, c3c4, c1345, conz1, c1, c2,
        c3, c4, c5, c4dssp, c5dssp, dtdssp, dttx1,
-       dttx2, dtty1, dtty2, dttz1, dttz2, c2dttx1, 
-       c2dtty1, c2dttz1, comz1, comz4, comz5, comz6, 
+       dttx2, dtty1, dtty2, dttz1, dttz2, c2dttx1,
+       c2dtty1, c2dttz1, comz1, comz4, comz5, comz6,
        c3c4tx3, c3c4ty3, c3c4tz3, c2iv, con43, con16;
 
-// to improve cache performance, grid dimensions padded by 1 
+// to improve cache performance, grid dimensions padded by 1
 // for even number sizes only.
 /* common /fields/ */
 double us     [KMAX][JMAXP+1][IMAXP+1];
@@ -93,6 +97,9 @@ int main(int argc, char *argv[])
 {
   int i, niter, step;
   double navg, mflops, n3;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   double tmax, t, trecs[t_last+1];
   logical verified;
@@ -131,7 +138,7 @@ int main(int argc, char *argv[])
     while (fgetc(fp) != '\n');
     result = fscanf(fp, "%lf", &dt);
     while (fgetc(fp) != '\n');
-    result = fscanf(fp, "%d%d%d\n", 
+    result = fscanf(fp, "%d%d%d\n",
         &grid_points[0], &grid_points[1], &grid_points[2]);
     fclose(fp);
   } else {
@@ -177,6 +184,17 @@ int main(int argc, char *argv[])
   }
   timer_start(1);
 
+#ifdef USE_CITERATOR
+  FOR_START(step, cit1, 1, niter, CIT_STEP1, RND) {
+  /*for (step = 1; step <= niter; step++) {*/
+    if ((step % 20) == 0 || step == 1) {
+      printf(" Time step %4d\n", step);
+    }
+
+    adi();
+  }
+  FOR_END(cit1);
+#else
   for (step = 1; step <= niter; step++) {
     if ((step % 20) == 0 || step == 1) {
       printf(" Time step %4d\n", step);
@@ -184,6 +202,7 @@ int main(int argc, char *argv[])
 
     adi();
   }
+#endif // USE_CITERATOR
 
   timer_stop(1);
   tmax = timer_read(1);
@@ -199,10 +218,10 @@ int main(int argc, char *argv[])
   } else {
     mflops = 0.0;
   }
-  print_results("BT", Class, grid_points[0], 
+  print_results("BT", Class, grid_points[0],
                 grid_points[1], grid_points[2], niter,
-                tmax, mflops, "          floating point", 
-                verified, NPBVERSION,COMPILETIME, CS1, CS2, CS3, CS4, CS5, 
+                tmax, mflops, "          floating point",
+                verified, NPBVERSION,COMPILETIME, CS1, CS2, CS3, CS4, CS5,
                 CS6, "(none)");
 
   //---------------------------------------------------------------------
@@ -216,7 +235,7 @@ int main(int argc, char *argv[])
     if (tmax == 0.0) tmax = 1.0;
     printf("  SECTION   Time (secs)\n");
     for (i = 1; i <= t_last; i++) {
-      printf("  %-8s:%9.3f  (%6.2f%%)\n", 
+      printf("  %-8s:%9.3f  (%6.2f%%)\n",
           t_names[i], trecs[i], trecs[i]*100./tmax);
       if (i == t_rhs) {
         t = trecs[t_rhsx] + trecs[t_rhsy] + trecs[t_rhsz];
