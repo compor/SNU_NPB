@@ -11,20 +11,22 @@ enum cit_order {
 
 /****/
 
-void cit_create(struct cit_data **data, unsigned int start, unsigned int end,
-                unsigned (*step)(const struct cit_data *data),
+void cit_create(struct cit_data **data, unsigned start, unsigned end,
+                int (*step)(const struct cit_data *data),
                 enum cit_order order);
 void cit_destroy(struct cit_data *data);
 
-unsigned int cit_begin(struct cit_data *data);
-unsigned int cit_next(struct cit_data *data);
+unsigned cit_begin(struct cit_data *data);
+unsigned cit_next(struct cit_data *data);
 short cit_is_valid(const struct cit_data *data);
 
 /****/
 
-unsigned int cit_step1(const struct cit_data *data);
+int cit_inc1(const struct cit_data *data);
 
-#define CIT_STEP1 cit_step1
+int cit_dec1(const struct cit_data *data);
+
+#define CIT_STEP1 cit_inc1
 
 /****/
 

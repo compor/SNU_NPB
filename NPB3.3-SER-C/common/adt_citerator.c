@@ -6,24 +6,25 @@
 #include <time.h>
 
 struct cit_data {
-  unsigned int start;
-  unsigned int end;
-  unsigned int current;
+  unsigned start;
+  unsigned end;
+  unsigned current_idx;
+  unsigned remaining_indices;
 
   short int valid;
 
-  unsigned int *indices;
-  unsigned int nindices;
+  unsigned *indices;
+  unsigned nindices;
 
-  unsigned int (*step)(const struct cit_data *data);
+  int (*step)(const struct cit_data *data);
 
   enum cit_order order;
 };
 
 /****/
 
-void cit_create(struct cit_data **data, unsigned int start, unsigned int end,
-  unsigned (*step)(const struct cit_data *data), enum cit_order order) {
+void cit_create(struct cit_data **data, unsigned start, unsigned end,
+  int (*step)(const struct cit_data *data), enum cit_order order) {
 
   *data = (struct cit_data *) malloc(1 * sizeof(struct cit_data));
   if(!*data) {
@@ -31,18 +32,29 @@ void cit_create(struct cit_data **data, unsigned int start, unsigned int end,
     return;
   }
 
-  if(RND == order) {
-    (*data)->start = start;
-    (*data)->end = end;
-    (*data)->step = step;
+  (*data)->step = step;
 
-    (*data)->nindices = (end - start) / (*data)->step(*data);
-    if((end - start) / (*data)->step(*data)) {
+  if(start <= end) {
+    (*data)->nindices = (end - start) / abs((*data)->step(*data));
+    if((end - start) / abs((*data)->step(*data))) {
       (*data)->nindices++;
     }
+  }
+  else {
+    (*data)->nindices = (start - end) / abs((*data)->step(*data));
+    if((start - end) / abs((*data)->step(*data))) {
+      (*data)->nindices++;
+    }
+  }
 
+  (*data)->remaining_indices = (*data)->nindices;
+
+  if(RND == order) {
     (*data)->indices = malloc((*data)->nindices * sizeof(unsigned));
-    /* TODO missing check */
+    if(!(*data)->indices) {
+      /* TODO add message */
+      return;
+    }
 
     (*data)->indices[0] = start;
     unsigned i = 0;
@@ -66,22 +78,20 @@ void cit_create(struct cit_data **data, unsigned int start, unsigned int end,
     }
 
     // repurpose
-    (*data)->current = 0;
+    (*data)->current_idx = 0;
   } else if(BWD == order) {
     (*data)->start = end;
     (*data)->end = start;
-    (*data)->step = step;
-    (*data)->current = (*data)->start;
+    (*data)->current_idx = (*data)->start;
   }
   else {
     (*data)->start = start;
     (*data)->end = end;
-    (*data)->step = step;
-    (*data)->current = (*data)->start;
+    (*data)->current_idx = (*data)->start;
     order = FWD;
   }
 
-  (*data)->valid = 1;
+  (*data)->valid = ((*data)->remaining_indices) ? 1 : 0;
   (*data)->order = order;
 }
 
@@ -94,48 +104,56 @@ void cit_destroy(struct cit_data *data) {
   }
 }
 
-unsigned int cit_begin(struct cit_data *data) {
+unsigned cit_begin(struct cit_data *data) {
   if(RND == data->order) {
-    return data->indices[data->current];
+    return data->indices[data->current_idx];
   }
   else {
    return data->start;
   }
 }
 
-unsigned int cit_next(struct cit_data *data) {
-  unsigned int step = data->step(data);
+unsigned cit_next(struct cit_data *data) {
+  int step = data->step(data);
 
-  if(RND == data->order) {
-    return data->indices[++data->current];
-  } else if(BWD == data->order) {
-    if(data->current == data->end) {
-      data->valid = 0;
-    } else {
-      data->current -= step;
+  if(data->remaining_indices <= 1) {
+    data->remaining_indices = 0;
+    data->valid = 0;
+
+    if(RND == data->order && data->nindices) {
+      return data->indices[data->nindices - 1];
+    }
+    else {
+      return data->end;
     }
   }
+
+  --data->remaining_indices;
+
+  if(RND == data->order) {
+    return data->indices[++data->current_idx];
+  }
+  else if(BWD == data->order) {
+    data->current_idx -= step;
+  }
   else {
-    data->current += step;
+    data->current_idx += step;
   }
 
-  return data->current;
+  return data->current_idx;
 }
 
 short cit_is_valid(const struct cit_data *data) {
-  if(RND == data->order) {
-    return data->current < data->nindices;
-  } else if(BWD == data->order) {
-    return data->valid && data->current >= data->end;
-  }
-  else {
-    return data->current <= data->end;
-  }
+  return data->valid;
 }
 
 /****/
 
-unsigned int cit_step1(const struct cit_data *data) {
+int cit_inc1(const struct cit_data *data) {
   return 1;
+}
+
+int cit_dec1(const struct cit_data *data) {
+  return -1;
 }
 
