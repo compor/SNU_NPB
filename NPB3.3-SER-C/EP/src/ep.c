@@ -54,6 +54,10 @@
 #include "timers.h"
 #include "print_results.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 #define MAX(X,Y)  (((X) > (Y)) ? (X) : (Y))
 
 #define MK        16
@@ -66,10 +70,10 @@
 #define S         271828183.0
 
 static double x[2*NK];
-static double q[NQ]; 
+static double q[NQ];
 
 
-int main() 
+int main()
 {
   double Mops, t1, t2, t3, t4, x1, x2;
   double sx, sy, tm, an, tt, gc;
@@ -78,6 +82,10 @@ int main()
   int    i, ik, kk, l, k, nit;
   int    k_offset, j;
   logical verified, timers_enabled;
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   double dum[3] = {1.0, 1.0, 1.0};
   char   size[16];
@@ -108,12 +116,12 @@ int main()
   verified = false;
 
   //--------------------------------------------------------------------
-  //  Compute the number of "batches" of random number pairs generated 
-  //  per processor. Adjust if the number of processors does not evenly 
+  //  Compute the number of "batches" of random number pairs generated
+  //  per processor. Adjust if the number of processors does not evenly
   //  divide the total number
   //--------------------------------------------------------------------
 
-  np = NN; 
+  np = NN;
 
   //--------------------------------------------------------------------
   //  Call the random number generator functions and initialize
@@ -127,7 +135,7 @@ int main()
   for (i = 0; i < 2 * NK; i++) {
     x[i] = -1.0e99;
   }
-  Mops = log(sqrt(fabs(MAX(1.0, 1.0))));   
+  Mops = log(sqrt(fabs(MAX(1.0, 1.0))));
 
   timer_clear(0);
   timer_clear(1);
@@ -165,13 +173,29 @@ int main()
 
   k_offset = -1;
 
+#ifdef USE_CITERATOR
+  FOR_RND_START(k, cit1, 1, np, CIT_STEP1) {
+  /*for (k = 1; k <= np; k++) {*/
+#else
   for (k = 1; k <= np; k++) {
-    kk = k_offset + k; 
+#endif // USE_CITERATOR
+    kk = k_offset + k;
     t1 = S;
     t2 = an;
 
     // Find starting seed t1 for this kk.
 
+#ifdef USE_CITERATOR
+    FOR_RND_START(i, cit2, 1, 100, CIT_STEP1) {
+    /*for (i = 1; i <= 100; i++) {*/
+      ik = kk / 2;
+      if ((2 * ik) != kk) t3 = randlc(&t1, t2);
+      if (ik == 0) break;
+      t3 = randlc(&t2, t2);
+      kk = ik;
+    }
+    FOR_RND_END(cit2);
+#else
     for (i = 1; i <= 100; i++) {
       ik = kk / 2;
       if ((2 * ik) != kk) t3 = randlc(&t1, t2);
@@ -179,6 +203,7 @@ int main()
       t3 = randlc(&t2, t2);
       kk = ik;
     }
+#endif // USE_CITERATOR
 
     //--------------------------------------------------------------------
     //  Compute uniform pseudorandom numbers.
@@ -188,12 +213,30 @@ int main()
     if (timers_enabled) timer_stop(2);
 
     //--------------------------------------------------------------------
-    //  Compute Gaussian deviates by acceptance-rejection method and 
-    //  tally counts in concentri//square annuli.  This loop is not 
-    //  vectorizable. 
+    //  Compute Gaussian deviates by acceptance-rejection method and
+    //  tally counts in concentri//square annuli.  This loop is not
+    //  vectorizable.
     //--------------------------------------------------------------------
     if (timers_enabled) timer_start(1);
 
+#ifdef USE_CITERATOR
+    FOR_RND_START(i, cit2, 0, NK-1, CIT_STEP1) {
+    /*for (i = 0; i < NK; i++) {*/
+      x1 = 2.0 * x[2*i] - 1.0;
+      x2 = 2.0 * x[2*i+1] - 1.0;
+      t1 = x1 * x1 + x2 * x2;
+      if (t1 <= 1.0) {
+        t2   = sqrt(-2.0 * log(t1) / t1);
+        t3   = (x1 * t2);
+        t4   = (x2 * t2);
+        l    = MAX(fabs(t3), fabs(t4));
+        q[l] = q[l] + 1.0;
+        sx   = sx + t3;
+        sy   = sy + t4;
+      }
+    }
+    FOR_RND_END(cit2);
+#else
     for (i = 0; i < NK; i++) {
       x1 = 2.0 * x[2*i] - 1.0;
       x2 = 2.0 * x[2*i+1] - 1.0;
@@ -208,13 +251,26 @@ int main()
         sy   = sy + t4;
       }
     }
+#endif // USE_CITERATOR
 
     if (timers_enabled) timer_stop(1);
   }
+#ifdef USE_CITERATOR
+  FOR_RND_END(cit1);
+#else
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_RND_START(i, cit1, 0, NQ-1, CIT_STEP1) {
+  /*for (i = 0; i < NQ; i++) {*/
+    gc = gc + q[i];
+  }
+  FOR_RND_END(cit1);
+#else
   for (i = 0; i < NQ; i++) {
     gc = gc + q[i];
   }
+#endif // USE_CITERATOR
 
   timer_stop(0);
   tm = timer_read(0);
@@ -265,7 +321,7 @@ int main()
   }
 
   print_results("EP", CLASS, M+1, 0, 0, nit,
-      tm, Mops, 
+      tm, Mops,
       "Random numbers generated",
       verified, NPBVERSION, COMPILETIME, CS1,
       CS2, CS3, CS4, CS5, CS6, CS7);

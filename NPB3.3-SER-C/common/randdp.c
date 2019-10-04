@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <math.h>
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 double randlc( double *x, double a )
 {
   //--------------------------------------------------------------------
@@ -108,6 +112,9 @@ void vranlc( int n, double *x, double a, double y[] )
   double t1, t2, t3, t4, a1, a2, x1, x2, z;
 
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   //--------------------------------------------------------------------
   //  Break A into two parts such that A = 2^23 * A1 + A2.
@@ -119,6 +126,30 @@ void vranlc( int n, double *x, double a, double y[] )
   //--------------------------------------------------------------------
   //  Generate N results.   This loop is not vectorizable.
   //--------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  enum cit_order order = FWD;
+  order = n ? FWD : FWD;
+
+  FOR_START(i, cit1, 0, n-1, CIT_STEP1, order) {
+  /*for ( i = 0; i < n; i++ ) {*/
+    //--------------------------------------------------------------------
+    //  Break X into two parts such that X = 2^23 * X1 + X2, compute
+    //  Z = A1 * X2 + A2 * X1  (mod 2^23), and then
+    //  X = 2^23 * Z + A2 * X2  (mod 2^46).
+    //--------------------------------------------------------------------
+    t1 = r23 * (*x);
+    x1 = (int) t1;
+    x2 = *x - t23 * x1;
+    t1 = a1 * x2 + a2 * x1;
+    t2 = (int) (r23 * t1);
+    z = t1 - t23 * t2;
+    t3 = t23 * z + a2 * x2;
+    t4 = (int) (r46 * t3) ;
+    *x = t3 - t46 * t4;
+    y[i] = r46 * (*x);
+  }
+  FOR_RND_END(cit1);
+#else
   for ( i = 0; i < n; i++ ) {
     //--------------------------------------------------------------------
     //  Break X into two parts such that X = 2^23 * X1 + X2, compute
@@ -136,6 +167,7 @@ void vranlc( int n, double *x, double a, double y[] )
     *x = t3 - t46 * t4;
     y[i] = r46 * (*x);
   }
+#endif // USE_CITERATOR
 
   return;
 }
