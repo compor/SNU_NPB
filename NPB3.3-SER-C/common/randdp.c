@@ -130,7 +130,7 @@ void vranlc( int n, double *x, double a, double y[] )
   enum cit_order order = FWD;
   order = n ? FWD : FWD;
 
-  FOR_START(i, cit1, 0, n-1, CIT_STEP1, order) {
+  FOR_START(i, cit1, 0, n-1, 1, cit_step_add, order) {
   /*for ( i = 0; i < n; i++ ) {*/
     //--------------------------------------------------------------------
     //  Break X into two parts such that X = 2^23 * X1 + X2, compute
@@ -148,7 +148,7 @@ void vranlc( int n, double *x, double a, double y[] )
     *x = t3 - t46 * t4;
     y[i] = r46 * (*x);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for ( i = 0; i < n; i++ ) {
     //--------------------------------------------------------------------
