@@ -4,17 +4,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <sys/time.h>
 
 struct cit_data {
-  unsigned start;
-  unsigned end;
-  unsigned current_idx;
-  unsigned remaining_indices;
+  cit_int_t start;
+  cit_int_t end;
+  cit_int_t current_idx;
+  cit_int_t remaining_indices;
 
   short int valid;
 
-  unsigned *indices;
-  unsigned nindices;
+  cit_int_t *indices;
+  cit_int_t nindices;
 
   int (*stepfunc)(const struct cit_data *data);
   int step;
@@ -24,8 +25,9 @@ struct cit_data {
 
 /****/
 
-void cit_create(struct cit_data **data, unsigned start, unsigned end, int step,
+void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end, int step,
   int (*stepfunc)(const struct cit_data *data), enum cit_order order) {
+  struct timeval time;
 
   *data = (struct cit_data *) malloc(1 * sizeof(struct cit_data));
   if(!*data) {
@@ -36,36 +38,49 @@ void cit_create(struct cit_data **data, unsigned start, unsigned end, int step,
   (*data)->stepfunc = stepfunc;
   (*data)->step= step;
 
-  if(start <= end) {
-    (*data)->nindices = (end - start + 1) / abs((*data)->stepfunc(*data));
+  if(start < end) {
+    (*data)->nindices = (end - start) / abs((*data)->stepfunc(*data));
+
+    if((end - start) % abs((*data)->stepfunc(*data))) {
+      (*data)->nindices++;
+    }
+  }
+  else if (start > end) {
+    (*data)->nindices = (start - end) / abs((*data)->stepfunc(*data));
+
+    if((start - end) % abs((*data)->stepfunc(*data))) {
+      (*data)->nindices++;
+    }
   }
   else {
-    (*data)->nindices = (start - end + 1) / abs((*data)->stepfunc(*data));
+    (*data)->nindices = 0;
   }
 
   (*data)->remaining_indices = (*data)->nindices;
 
-  if(RND == order) {
-    (*data)->indices = malloc((*data)->nindices * sizeof(unsigned));
+  if(RND == order && (*data)->nindices) {
+    (*data)->indices = malloc((*data)->nindices * sizeof(cit_int_t));
     if(!(*data)->indices) {
       /* TODO add message */
       return;
     }
 
     (*data)->indices[0] = start;
-    unsigned i = 0;
+    cit_int_t i = 0;
     for(i = 1; i < (*data)->nindices; i++) {
       (*data)->indices[i] = (*data)->indices[i-1] + (*data)->stepfunc(*data);
     }
 
-    srand(time(NULL));
+    gettimeofday(&time,NULL);
+    srand((time.tv_sec * 1000) + (time.tv_usec / 1000));
+    /*srand(time(NULL));*/
 
     /* randomly permute indices */
-    unsigned j = 0;
-    unsigned temp = 0;
+    cit_int_t j = 0;
+    cit_int_t temp = 0;
     for (i = (*data)->nindices-1; i > 0; --i){
       //generate a random number [0, n-1]
-      j = (unsigned) rand() % (i+1);
+      j = (cit_int_t) rand() % (i+1);
 
       //swap the last element with element at random index
       temp = (*data)->indices[i];
@@ -73,6 +88,8 @@ void cit_create(struct cit_data **data, unsigned start, unsigned end, int step,
       (*data)->indices[j] = temp;
     }
 
+    (*data)->start = end;
+    (*data)->end = start;
     // repurpose
     (*data)->current_idx = 0;
   } else if(BWD == order) {
@@ -100,8 +117,8 @@ void cit_destroy(struct cit_data *data) {
   }
 }
 
-unsigned cit_begin(struct cit_data *data) {
-  if(RND == data->order) {
+cit_int_t cit_begin(struct cit_data *data) {
+  if(RND == data->order && data->nindices) {
     return data->indices[data->current_idx];
   }
   else {
@@ -109,7 +126,7 @@ unsigned cit_begin(struct cit_data *data) {
   }
 }
 
-unsigned cit_next(struct cit_data *data) {
+cit_int_t cit_next(struct cit_data *data) {
   int stepfunc = data->stepfunc(data);
 
   if(data->remaining_indices <= 1) {

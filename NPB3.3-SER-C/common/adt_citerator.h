@@ -9,15 +9,17 @@ enum cit_order {
   RND, /* NOT IMPLEMENTED */
 };
 
+typedef int cit_int_t;
+
 /****/
 
-void cit_create(struct cit_data **data, unsigned start, unsigned end,
+void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end,
                 int step, int (*stepfunc)(const struct cit_data *data),
                 enum cit_order order);
 void cit_destroy(struct cit_data *data);
 
-unsigned cit_begin(struct cit_data *data);
-unsigned cit_next(struct cit_data *data);
+cit_int_t cit_begin(struct cit_data *data);
+cit_int_t cit_next(struct cit_data *data);
 short cit_is_valid(const struct cit_data *data);
 
 /****/
