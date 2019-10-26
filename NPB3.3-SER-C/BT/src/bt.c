@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
   timer_start(1);
 
 #ifdef USE_CITERATOR
-  FOR_START(step, cit1, 1, niter, CIT_STEP1, RND) {
+  FOR_START(step, cit1, 1, niter+1, 1, cit_step_add, RND) {
   /*for (step = 1; step <= niter; step++) {*/
     if ((step % 20) == 0 || step == 1) {
       printf(" Time step %4d\n", step);

@@ -74,11 +74,11 @@ void y_solve()
   // determine a (labeled f) and n jacobians for cell c
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= grid_points[2]-2; k++) {*/
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
     /*for (i = 1; i <= grid_points[0]-2; i++) {*/
-      FOR_RND_START(j, cit3, 0, jsize, CIT_STEP1) {
+      FOR_START(j, cit3, 0, jsize+1, 1, cit_step_add, RND) {
       /*for (j = 0; j <= jsize; j++) {*/
         tmp1 = rho_i[k][j][i];
         tmp2 = tmp1 * tmp1;
@@ -153,13 +153,13 @@ void y_solve()
         njac[j][3][4] = ( c3c4 - c1345 ) * tmp2 * u[k][j][i][3];
         njac[j][4][4] = ( c1345 ) * tmp1;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // now joacobians set, so form left hand side in y direction
       //---------------------------------------------------------------------
       lhsinit(lhs, jsize);
-      FOR_RND_START(j, cit3, 1, jsize - 1, CIT_STEP1) {
+      FOR_START(j, cit3, 1, jsize - 1+1, 1, cit_step_add, RND) {
       /*for (j = 1; j <= jsize-1; j++) {*/
         tmp1 = dt * ty1;
         tmp2 = dt * ty2;
@@ -324,7 +324,7 @@ void y_solve()
           - tmp1 * njac[j+1][4][4]
           - tmp1 * dy5;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       //---------------------------------------------------------------------
@@ -349,7 +349,7 @@ void y_solve()
       // begin inner most do loop
       // do all the elements of the cell unless last
       //---------------------------------------------------------------------
-      FOR_START(j, cit3, 1, jsize - 1, CIT_STEP1, FWD) {
+      FOR_START(j, cit3, 1, jsize - 1+1, 1, cit_step_add, FWD) {
       /*for (j = 1; j <= jsize-1; j++) {*/
         //-------------------------------------------------------------------
         // subtract A*lhs_vector(j-1) from lhs_vector(j)
@@ -394,24 +394,24 @@ void y_solve()
       // so just use it
       // after u(jstart) will be sent to next cell
       //---------------------------------------------------------------------
-      FOR_START(j, cit3, jsize - 1, 0, cit_dec1, FWD) {
+      FOR_START(j, cit3, jsize - 1, -1, -1, cit_step_add, FWD) {
       /*for (j = jsize-1; j >= 0; j--) {*/
-        FOR_RND_START(m, cit4, 0, BLOCK_SIZE - 1, CIT_STEP1) {
+        FOR_START(m, cit4, 0, BLOCK_SIZE - 1+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < BLOCK_SIZE; m++) {*/
-          FOR_RND_START(n, cit5, 0, BLOCK_SIZE - 1, CIT_STEP1) {
+          FOR_START(n, cit5, 0, BLOCK_SIZE - 1+1, 1, cit_step_add, RND) {
           /*for (n = 0; n < BLOCK_SIZE; n++) {*/
             rhs[k][j][i][m] = rhs[k][j][i][m]
               - lhs[j][CC][n][m]*rhs[k][j+1][i][n];
           }
-          FOR_RND_END(cit5);
+          FOR_END(cit5);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
       FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (i = 1; i <= grid_points[0]-2; i++) {

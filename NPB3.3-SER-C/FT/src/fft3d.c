@@ -81,14 +81,14 @@ static void Swarztrauber(int is, int m, int vlen, int n, int xd1,
   li = 1 << m;
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(l, cit1, 1, m, 2, cit_step_add) {
+  FOR_START(l, cit1, 1, m+1, 2, cit_step_add, RND) {
   /*for (l = 1; l <= m; l += 2) {*/
     lk = lj;
     lj = 2 * lk;
     li = li / 2;
     ku = li;
 
-    FOR_RND_START(i, cit2, 0, li-1, 1, cit_step_add) {
+    FOR_START(i, cit2, 0, li-1+1, 1, cit_step_add, RND) {
     /*for (i = 0; i <= li - 1; i++) {*/
       i11 = i * lk;
       i12 = i11 + n1;
@@ -100,38 +100,38 @@ static void Swarztrauber(int is, int m, int vlen, int n, int xd1,
       } else {
         u1 = dconjg(exponent[ku+i]);
       }
-      FOR_RND_START(k, cit3, 0, lk-1, 1, cit_step_add) {
+      FOR_START(k, cit3, 0, lk-1+1, 1, cit_step_add, RND) {
       /*for (k = 0; k <= lk - 1; k++) {*/
-        FOR_RND_START(j, cit4, 0, vlen-1, 1, cit_step_add) {
+        FOR_START(j, cit4, 0, vlen-1+1, 1, cit_step_add, RND) {
         /*for (j = 0; j < vlen; j++) {*/
           x11 = x[i11+k][j];
           x21 = x[i12+k][j];
           scr[i21+k][j] = dcmplx_add(x11, x21);
           scr[i22+k][j] = dcmplx_mul(u1, dcmplx_sub(x11, x21));
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     if (l == m) {
-      FOR_RND_START(k, cit2, 0, n-1, 1, cit_step_add) {
+      FOR_START(k, cit2, 0, n-1+1, 1, cit_step_add, RND) {
       /*for (k = 0; k < n; k++) {*/
-        FOR_RND_START(j, cit3, 0, vlen-1, 1, cit_step_add) {
+        FOR_START(j, cit3, 0, vlen-1+1, 1, cit_step_add, RND) {
         /*for (j = 0; j < vlen; j++) {*/
           x[k][j] = scr[k][j];
         }
-        FOR_RND_END(cit3);
+        FOR_END(cit3);
       }
-      FOR_RND_END(cit2);
+      FOR_END(cit2);
     } else {
       lk = lj;
       lj = 2 * lk;
       li = li / 2;
       ku = li;
 
-      FOR_RND_START(i, cit2, 0, li-1, 1, cit_step_add) {
+      FOR_START(i, cit2, 0, li-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= li - 1; i++) {*/
         i11 = i * lk;
         i12 = i11 + n1;
@@ -143,23 +143,23 @@ static void Swarztrauber(int is, int m, int vlen, int n, int xd1,
         } else {
           u1 = dconjg(exponent[ku+i]);
         }
-        FOR_RND_START(k, cit3, 0, lk-1, 1, cit_step_add) {
+        FOR_START(k, cit3, 0, lk-1+1, 1, cit_step_add, RND) {
         /*for (k = 0; k <= lk - 1; k++) {*/
-          FOR_RND_START(j, cit4, 0, vlen-1, 1, cit_step_add) {
+          FOR_START(j, cit4, 0, vlen-1+1, 1, cit_step_add, RND) {
           /*for (j = 0; j < vlen; j++) {*/
             x11 = scr[i11+k][j];
             x21 = scr[i12+k][j];
             x[i21+k][j] = dcmplx_add(x11, x21);
             x[i22+k][j] = dcmplx_mul(u1, dcmplx_sub(x11, x21));
           }
-          FOR_RND_END(cit4);
+          FOR_END(cit4);
         }
-        FOR_RND_END(cit3);
+        FOR_END(cit3);
       }
-      FOR_RND_END(cit2);
+      FOR_END(cit2);
     }
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (l = 1; l <= m; l += 2) {
     lk = lj;
@@ -248,36 +248,36 @@ void fftXYZ(int sign, int n1, int n2, int n3,
   log = ilog2(n1);
   if (timers_enabled) timer_start(7);
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, n3-1, 1, cit_step_add) {
+  FOR_START(k, cit1, 0, n3-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k < n3; k++) {*/
-    FOR_RND_START(bls, cit2, 0, n2-1, fftblock, cit_step_add) {
+    FOR_START(bls, cit2, 0, n2-1+1, fftblock, cit_step_add, RND) {
     /*for (bls = 0; bls < n2; bls += fftblock) {*/
       ble = bls + fftblock - 1;
       if (ble > n2) ble = n2 - 1;
       len = ble - bls + 1;
-      FOR_RND_START(j, cit3, bls, ble, 1, cit_step_add) {
+      FOR_START(j, cit3, bls, ble+1, 1, cit_step_add, RND) {
       /*for (j = bls; j <= ble; j++) {*/
-        FOR_RND_START(i, cit4, 0, n1-1, 1, cit_step_add) {
+        FOR_START(i, cit4, 0, n1-1+1, 1, cit_step_add, RND) {
         /*for (i = 0; i < n1; i++) {*/
           plane[j-bls+blkp*i] = x[k][j][i];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
       Swarztrauber(sign, log, len, n1, blkp, plane, exp1);
-      FOR_RND_START(j, cit3, bls, ble, 1, cit_step_add) {
+      FOR_START(j, cit3, bls, ble+1, 1, cit_step_add, RND) {
       /*for (j = bls; j <= ble; j++) {*/
-        FOR_RND_START(i, cit4, 0, n1-1, 1, cit_step_add) {
+        FOR_START(i, cit4, 0, n1-1+1, 1, cit_step_add, RND) {
         /*for (i = 0; i < n1; i++) {*/
           x[k][j][i] = plane[j-bls+blkp*i];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k < n3; k++) {
     for (bls = 0; bls < n2; bls += fftblock) {
@@ -306,18 +306,18 @@ void fftXYZ(int sign, int n1, int n2, int n3,
   log = ilog2(n2);
   if (timers_enabled) timer_start(8);
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, n3-1, 1, cit_step_add) {
+  FOR_START(k, cit1, 0, n3-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k < n3; k++) {*/
-    FOR_RND_START(bls, cit2, 0, n1-1, fftblock, cit_step_add) {
+    FOR_START(bls, cit2, 0, n1-1+1, fftblock, cit_step_add, RND) {
     /*for (bls = 0; bls < n1; bls += fftblock) {*/
       ble = bls + fftblock - 1;
       if (ble > n1) ble = n1 - 1;
       len = ble - bls + 1;
       Swarztrauber(sign, log, len, n2, n1+1, &x[k][0][bls], exp2);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k < n3; k++) {
     for (bls = 0; bls < n1; bls += fftblock) {
@@ -336,36 +336,36 @@ void fftXYZ(int sign, int n1, int n2, int n3,
   log = ilog2(n3);
   if (timers_enabled) timer_start(9);
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, n2-1, 1, cit_step_add) {
+  FOR_START(k, cit1, 0, n2-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k < n2; k++) {*/
-    FOR_RND_START(bls, cit2, 0, n1-1, fftblock, cit_step_add) {
+    FOR_START(bls, cit2, 0, n1-1+1, fftblock, cit_step_add, RND) {
     /*for (bls = 0; bls < n1; bls += fftblock) {*/
       ble = bls + fftblock - 1;
       if (ble > n1) ble = n1 - 1;
       len = ble - bls + 1;
-      FOR_RND_START(i, cit3, 0, n3-1, 1, cit_step_add) {
+      FOR_START(i, cit3, 0, n3-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i < n3; i++) {*/
-        FOR_RND_START(j, cit4, bls, ble, 1, cit_step_add) {
+        FOR_START(j, cit4, bls, ble+1, 1, cit_step_add, RND) {
         /*for (j = bls; j <= ble; j++) {*/
           plane[j-bls+blkp*i] = x[i][k][j];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
       Swarztrauber(sign, log, len, n3, blkp, plane, exp3);
-      FOR_RND_START(i, cit3, 0, n3-1, 1, cit_step_add) {
+      FOR_START(i, cit3, 0, n3-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= n3-1; i++) {*/
-        FOR_RND_START(j, cit4, bls, ble, 1, cit_step_add) {
+        FOR_START(j, cit4, bls, ble+1, 1, cit_step_add, RND) {
         /*for (j = bls; j <= ble; j++) {*/
           xout[j+(n1+1)*(k+n2*i)] = plane[j-bls+blkp*i];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k < n2; k++) {
     for (bls = 0; bls < n1; bls += fftblock) {

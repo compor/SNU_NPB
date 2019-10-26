@@ -53,9 +53,9 @@ void compute_rhs()
   //---------------------------------------------------------------------
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
         rho_inv = 1.0/u[k][j][i][0];
         rho_i[k][j][i] = rho_inv;
         us[k][j][i] = u[k][j][i][1] * rho_inv;
@@ -67,11 +67,11 @@ void compute_rhs()
             u[k][j][i][3]*u[k][j][i][3] ) * rho_inv;
         qs[k][j][i] = square[k][j][i] * rho_inv;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -97,19 +97,19 @@ void compute_rhs()
   // including the boundary
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
           rhs[k][j][i][m] = forcing[k][j][i][m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -127,9 +127,9 @@ void compute_rhs()
   // compute xi-direction fluxes
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
         uijk = us[k][j][i];
         up1  = us[k][j][i+1];
         um1  = us[k][j][i-1];
@@ -181,66 +181,66 @@ void compute_rhs()
                c2*square[k][j][i-1])*um1 );
 
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     //---------------------------------------------------------------------
     // add fourth order xi-direction dissipation
     //---------------------------------------------------------------------
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
       i = 1;
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m]- dssp *
           ( 5.0*u[k][j][i][m] - 4.0*u[k][j][i+1][m] +
             u[k][j][i+2][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       i = 2;
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           (-4.0*u[k][j][i-1][m] + 6.0*u[k][j][i][m] -
            4.0*u[k][j][i+1][m] + u[k][j][i+2][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 3, grid_points[0]-4, CIT_STEP1) {
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 3, grid_points[0]-4+1, 1, cit_step_add, RND) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
           rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
             (  u[k][j][i-2][m] - 4.0*u[k][j][i-1][m] +
                6.0*u[k][j][i][m] - 4.0*u[k][j][i+1][m] +
                u[k][j][i+2][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
       i = grid_points[0]-3;
-      FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k][j][i-2][m] - 4.0*u[k][j][i-1][m] +
             6.0*u[k][j][i][m] - 4.0*u[k][j][i+1][m] );
       }
-      FOR_RND_END(cit4);
+      FOR_END(cit4);
 
       i = grid_points[0]-2;
-      FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k][j][i-2][m] - 4.*u[k][j][i-1][m] +
             5.*u[k][j][i][m] );
       }
-      FOR_RND_END(cit4);
+      FOR_END(cit4);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
@@ -351,9 +351,9 @@ void compute_rhs()
   // compute eta-direction fluxes
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
         vijk = vs[k][j][i];
         vp1  = vs[k][j+1][i];
         vm1  = vs[k][j-1][i];
@@ -399,72 +399,72 @@ void compute_rhs()
               (c1*u[k][j-1][i][4] -
                c2*square[k][j-1][i]) * vm1);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     //---------------------------------------------------------------------
     // add fourth order eta-direction dissipation
     //---------------------------------------------------------------------
     j = 1;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m]- dssp *
           ( 5.0*u[k][j][i][m] - 4.0*u[k][j+1][i][m] +
             u[k][j+2][i][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     j = 2;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           (-4.0*u[k][j-1][i][m] + 6.0*u[k][j][i][m] -
            4.0*u[k][j+1][i][m] + u[k][j+2][i][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
-    FOR_RND_START(j, cit2, 3, grid_points[1]-4, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+    FOR_START(j, cit2, 3, grid_points[1]-4+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
           rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
             (  u[k][j-2][i][m] - 4.0*u[k][j-1][i][m] +
                6.0*u[k][j][i][m] - 4.0*u[k][j+1][i][m] +
                u[k][j+2][i][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     j = grid_points[1]-3;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k][j-2][i][m] - 4.0*u[k][j-1][i][m] +
             6.0*u[k][j][i][m] - 4.0*u[k][j+1][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     j = grid_points[1]-2;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k][j-2][i][m] - 4.*u[k][j-1][i][m] +
             5.*u[k][j][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
@@ -574,9 +574,9 @@ void compute_rhs()
   // compute zeta-direction fluxes
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
         wijk = ws[k][j][i];
         wp1  = ws[k+1][j][i];
         wm1  = ws[k-1][j][i];
@@ -623,11 +623,11 @@ void compute_rhs()
               (c1*u[k-1][j][i][4] -
                c2*square[k-1][j][i])*wm1);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
@@ -688,92 +688,92 @@ void compute_rhs()
 #ifdef USE_CITERATOR
   k = 1;
 
-  FOR_RND_START(j, cit1, 1, grid_points[1]-2, CIT_STEP1) {
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+  FOR_START(j, cit1, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m]- dssp *
           ( 5.0*u[k][j][i][m] - 4.0*u[k+1][j][i][m] +
             u[k+2][j][i][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 
   k = 2;
-  FOR_RND_START(j, cit1, 1, grid_points[1]-2, CIT_STEP1) {
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+  FOR_START(j, cit1, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           (-4.0*u[k-1][j][i][m] + 6.0*u[k][j][i][m] -
            4.0*u[k+1][j][i][m] + u[k+2][j][i][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 
-  FOR_RND_START(k, cit1, 3, grid_points[2]-4, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+  FOR_START(k, cit1, 3, grid_points[2]-4+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
           rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
             (  u[k-2][j][i][m] - 4.0*u[k-1][j][i][m] +
                6.0*u[k][j][i][m] - 4.0*u[k+1][j][i][m] +
                u[k+2][j][i][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 
   k = grid_points[2]-3;
-  FOR_RND_START(j, cit1, 1, grid_points[1]-2, CIT_STEP1) {
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+  FOR_START(j, cit1, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k-2][j][i][m] - 4.0*u[k-1][j][i][m] +
             6.0*u[k][j][i][m] - 4.0*u[k+1][j][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 
   k = grid_points[2]-2;
-  FOR_RND_START(j, cit1, 1, grid_points[1]-2, CIT_STEP1) {
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+  FOR_START(j, cit1, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
         rhs[k][j][i][m] = rhs[k][j][i][m] - dssp *
           ( u[k-2][j][i][m] - 4.*u[k-1][j][i][m] +
             5.*u[k][j][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
   if (timeron) timer_stop(t_rhsz);
 
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
           rhs[k][j][i][m] = rhs[k][j][i][m] * dt;
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   k = 1;
   for (j = 1; j <= grid_points[1]-2; j++) {

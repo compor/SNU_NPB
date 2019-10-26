@@ -4,6 +4,10 @@
 #include "adc.h"
 #include "macrodef.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 int32 KeyComp( const uint32 *a, const uint32 *b, uint32 n ) {
   uint32 i;
   for ( i = 0; i < n; i++ ) {
@@ -13,10 +17,14 @@ int32 KeyComp( const uint32 *a, const uint32 *b, uint32 n ) {
   return(0);
 }
 int32 TreeInsert(RBTree *tree, uint32 *attrs){
-   uint32  sl = 1;			    	
+   uint32  sl = 1;
    uint32 *attrsP;
     int32  cmpres;
  treeNode *xNd, *yNd, *tmp;
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   tmp = &tree->root;
   xNd = tmp->left;
@@ -60,15 +68,23 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
         NEW_TREE_NODE(tree->mp,tree->memPool,
 		              tree->memaddr,tree->treeNodeSize,
 		              tree->freeNodeCounter,tree->memoryIsFull)
-        xNd = xNd->right = tree->mp; 
+        xNd = xNd->right = tree->mp;
         break;
       }
-    }else{  
-      uint64 ii; 
+    }else{
+      uint64 ii;
       int64 *mx;
       mx = (int64*) &attrs[0];
+#ifdef USE_CITERATOR
+      FOR_START(ii, cit1, 0, tree->nm, 1, cit_step_add, RND) {
+      /*for ( ii = 0; ii < tree->nm; ii++ )*/
+        xNd->nodeMemPool[ii] += mx[ii];
+      }
+      FOR_END(cit1);
+#else
       for ( ii = 0; ii < tree->nm; ii++ ) xNd->nodeMemPool[ii] += mx[ii];
-      return 0; 
+#endif // USE_CITERATOR
+      return 0;
     }
     xNd = yNd;
   }
@@ -79,7 +95,7 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
 
   while(1){
     if ( tree->nodes[sl-1]->clr != RED || sl<3 ) break;
-      
+
     if (tree->drcts[sl-2] == 0){
       yNd = tree->nodes[sl-2]->right;
       if (yNd != NULL && yNd->clr == RED){
@@ -96,7 +112,7 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
 	      tree->nodes[sl-2]->left = yNd;
         }else
           yNd = tree->nodes[sl-1];
-	  
+
         xNd = tree->nodes[sl-2];
         xNd->clr = RED;
         yNd->clr = BLACK;
@@ -106,7 +122,7 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
 
         if(tree->drcts[sl-3])
           tree->nodes[sl-3]->right = yNd;
-	    else  
+	    else
           tree->nodes[sl-3]->left = yNd;
         break;
       }
@@ -136,7 +152,7 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
 
    	    if (tree->drcts[sl-3])
    	      tree->nodes[sl-3]->right = yNd;
-     	else  
+     	else
    	      tree->nodes[sl-3]->left  = yNd;
    	    break;
       }
@@ -147,54 +163,89 @@ int32 TreeInsert(RBTree *tree, uint32 *attrs){
 }
 int32 WriteViewToDisk(ADC_VIEW_CNTL *avp, treeNode *t){
   uint32 i;
+#ifdef USE_CITERATOR
+    struct cit_data *cit1;
+#endif // USE_CITERATOR
   if(!t) return ADC_OK;
   if(WriteViewToDisk( avp, t->left)) return ADC_WRITE_FAILED;
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, avp->nm, 1, cit_step_add, RND) {
+  /*for(i=0;i<avp->nm;i++){*/
+    avp->mSums[i] += t->nodeMemPool[i];
+  }
+  FOR_END(cit1);
+#else
   for(i=0;i<avp->nm;i++){
-    avp->mSums[i] += t->nodeMemPool[i];  
-  }	   
+    avp->mSums[i] += t->nodeMemPool[i];
+  }
+#endif // USE_CITERATOR
   WriteToFile(t->nodeMemPool,avp->outRecSize,1,avp->viewFile,avp->logf);
   if(WriteViewToDisk( avp, t->right)) return ADC_WRITE_FAILED;
   return ADC_OK;
 }
 int32 WriteViewToDiskCS(ADC_VIEW_CNTL *avp, treeNode *t,uint64 *ordern){
   uint32 i;
+#ifdef USE_CITERATOR
+    struct cit_data *cit1;
+#endif // USE_CITERATOR
   if(!t) return ADC_OK;
   if(WriteViewToDiskCS( avp, t->left,ordern)) return ADC_WRITE_FAILED;
-  for(i=0;i<avp->nm;i++){
-    avp->mSums[i] += t->nodeMemPool[i];  
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, avp->nm, 1, cit_step_add, RND) {
+  /*for(i=0;i<avp->nm;i++){*/
+    avp->mSums[i] += t->nodeMemPool[i];
     avp->checksums[i] += (++(*ordern))*t->nodeMemPool[i]%measbound;
-  }	   
+  }
+  FOR_END(cit1);
+#else
+  for(i=0;i<avp->nm;i++){
+    avp->mSums[i] += t->nodeMemPool[i];
+    avp->checksums[i] += (++(*ordern))*t->nodeMemPool[i]%measbound;
+  }
+#endif // USE_CITERATOR
   WriteToFile(t->nodeMemPool,avp->outRecSize,1,avp->viewFile,avp->logf);
   if(WriteViewToDiskCS( avp, t->right,ordern)) return ADC_WRITE_FAILED;
   return ADC_OK;
 }
 int32 computeChecksum(ADC_VIEW_CNTL *avp, treeNode *t,uint64 *ordern){
   uint32 i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
   if(!t) return ADC_OK;
   if(computeChecksum(avp,t->left,ordern)) return ADC_WRITE_FAILED;
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, avp->nm, 1, cit_step_add, RND) {
+  /*for(i=0;i<avp->nm;i++){*/
+    avp->checksums[i] += (++(*ordern))*t->nodeMemPool[i]%measbound;
+  }
+  FOR_END(cit1);
+#else
   for(i=0;i<avp->nm;i++){
     avp->checksums[i] += (++(*ordern))*t->nodeMemPool[i]%measbound;
-  }	   
+  }
+#endif // USE_CITERATOR
   if(computeChecksum(avp,t->right,ordern)) return ADC_WRITE_FAILED;
   return ADC_OK;
 }
 int32 WriteChunkToDisk(uint32 recordSize,FILE *fileOfChunks,
-		       treeNode *t, FILE *logFile){   
+		       treeNode *t, FILE *logFile){
   if(!t) return ADC_OK;
-  if(WriteChunkToDisk( recordSize, fileOfChunks, t->left, logFile)) 
-    return ADC_WRITE_FAILED; 
+  if(WriteChunkToDisk( recordSize, fileOfChunks, t->left, logFile))
+    return ADC_WRITE_FAILED;
   WriteToFile( t->nodeMemPool, recordSize, 1, fileOfChunks, logFile);
-  if(WriteChunkToDisk( recordSize, fileOfChunks, t->right, logFile)) 
+  if(WriteChunkToDisk( recordSize, fileOfChunks, t->right, logFile))
     return ADC_WRITE_FAILED;
   return ADC_OK;
 }
-RBTree * CreateEmptyTree(uint32 nd, uint32 nm, 
+RBTree * CreateEmptyTree(uint32 nd, uint32 nm,
                          uint32 memoryLimit, unsigned char * memPool){
   RBTree *tree = (RBTree*)  malloc(sizeof(RBTree));
   if (!tree) return NULL;
 
-  tree->root.left = NULL;    
-  tree->root.right = NULL;     
+  tree->root.left = NULL;
+  tree->root.right = NULL;
   tree->count = 0;
   tree->memaddr = 0;
   tree->treeNodeSize = sizeof(struct treeNode) + DIM_FSZ*(nd-1)+MSR_FSZ*nm;
@@ -215,8 +266,8 @@ RBTree * CreateEmptyTree(uint32 nd, uint32 nm,
   return tree;
 }
 void InitializeTree(RBTree *tree, uint32 nd, uint32 nm){
-  tree->root.left = NULL;    
-  tree->root.right = NULL;     
+  tree->root.left = NULL;
+  tree->root.right = NULL;
   tree->count = 0;
   tree->memaddr = 0;
   tree->treeNodeSize = sizeof(struct treeNode) + DIM_FSZ*(nd-1)+MSR_FSZ*nm;

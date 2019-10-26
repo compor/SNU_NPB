@@ -51,23 +51,23 @@ void exact_rhs()
   // initialize
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
     /*for (j = 0; j <= grid_points[1]-1; j++) {*/
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= grid_points[0]-1; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           forcing[k][j][i][m] = 0.0;
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -84,40 +84,40 @@ void exact_rhs()
   // xi-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= grid_points[2]-2; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
     /*for (j = 1; j <= grid_points[1]-2; j++) {*/
       eta = (double)(j) * dnym1;
 
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= grid_points[0]-1; i++) {*/
         xi = (double)(i) * dnxm1;
 
         exact_solution(xi, eta, zeta, dtemp);
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           ue[i][m] = dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         dtpp = 1.0 / dtemp[0];
 
-        FOR_RND_START(m, cit4, 1, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 1, 4+1, 1, cit_step_add, RND) {
         /*for (m = 1; m < 5; m++) {*/
           buf[i][m] = dtpp * dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         cuf[i]    = buf[i][1] * buf[i][1];
         buf[i][0] = cuf[i] + buf[i][2] * buf[i][2] + buf[i][3] * buf[i][3];
         q[i] = 0.5*(buf[i][1]*ue[i][1] + buf[i][2]*ue[i][2] +
                     buf[i][3]*ue[i][3]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
       /*for (i = 1; i <= grid_points[0]-2; i++) {*/
         im1 = i-1;
         ip1 = i+1;
@@ -151,12 +151,12 @@ void exact_rhs()
           xxcon5*(buf[ip1][4]-2.0*buf[i][4]+buf[im1][4])+
           dx5tx1*( ue[ip1][4]-2.0* ue[i][4]+ ue[im1][4]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // Fourth-order dissipation
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         i = 1;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -166,21 +166,21 @@ void exact_rhs()
           (-4.0*ue[i-1][m] + 6.0*ue[i][m] -
             4.0*ue[i+1][m] +     ue[i+2][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, 3, grid_points[0]-4, CIT_STEP1) {
+      FOR_START(i, cit3, 3, grid_points[0]-4+1, 1, cit_step_add, RND) {
       /*for (i = 3; i <= grid_points[0]-4; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           forcing[k][j][i][m] = forcing[k][j][i][m] - dssp*
             (ue[i-2][m] - 4.0*ue[i-1][m] +
              6.0*ue[i][m] - 4.0*ue[i+1][m] + ue[i+2][m]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         i = grid_points[0]-3;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -190,11 +190,11 @@ void exact_rhs()
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
           (ue[i-2][m] - 4.0*ue[i-1][m] + 5.0*ue[i][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     zeta = (double)(k) * dnzm1;
@@ -293,40 +293,40 @@ void exact_rhs()
   // eta-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= grid_points[2]-2; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
     /*for (i = 1; i <= grid_points[0]-2; i++) {*/
       xi = (double)(i) * dnxm1;
 
-      FOR_RND_START(j, cit3, 0, grid_points[1]-1, CIT_STEP1) {
+      FOR_START(j, cit3, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
       /*for (j = 0; j <= grid_points[1]-1; j++) {*/
         eta = (double)(j) * dnym1;
 
         exact_solution(xi, eta, zeta, dtemp);
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           ue[j][m] = dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         dtpp = 1.0/dtemp[0];
 
-        FOR_RND_START(m, cit4, 1, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 1, 4+1, 1, cit_step_add, RND) {
         /*for (m = 1; m < 5; m++) {*/
           buf[j][m] = dtpp * dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         cuf[j]    = buf[j][2] * buf[j][2];
         buf[j][0] = cuf[j] + buf[j][1] * buf[j][1] + buf[j][3] * buf[j][3];
         q[j] = 0.5*(buf[j][1]*ue[j][1] + buf[j][2]*ue[j][2] +
                     buf[j][3]*ue[j][3]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(j, cit3, 1, grid_points[1]-2, CIT_STEP1) {
+      FOR_START(j, cit3, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
       /*for (j = 1; j <= grid_points[1]-2; j++) {*/
         jm1 = j-1;
         jp1 = j+1;
@@ -360,12 +360,12 @@ void exact_rhs()
           yycon5*(buf[jp1][4]-2.0*buf[j][4]+buf[jm1][4])+
           dy5ty1*(ue[jp1][4]-2.0*ue[j][4]+ue[jm1][4]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // Fourth-order dissipation
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         j = 1;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -375,21 +375,21 @@ void exact_rhs()
           (-4.0*ue[j-1][m] + 6.0*ue[j][m] -
            4.0*ue[j+1][m] +       ue[j+2][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_START(j, cit3, 3, grid_points[1]-4, CIT_STEP1, FWD) {
+      FOR_START(j, cit3, 3, grid_points[1]-4+1, 1, cit_step_add, FWD) {
       /*for (j = 3; j <= grid_points[1]-4; j++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           forcing[k][j][i][m] = forcing[k][j][i][m] - dssp*
             (ue[j-2][m] - 4.0*ue[j-1][m] +
              6.0*ue[j][m] - 4.0*ue[j+1][m] + ue[j+2][m]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
       FOR_END(cit3);
 
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         j = grid_points[1]-3;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -399,7 +399,7 @@ void exact_rhs()
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
           (ue[j-2][m] - 4.0*ue[j-1][m] + 5.0*ue[j][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
   }
 #else
@@ -500,40 +500,40 @@ void exact_rhs()
   // zeta-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(j, cit1, 1, grid_points[1]-2, CIT_STEP1) {
+  FOR_START(j, cit1, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
   /*for (j = 1; j <= grid_points[1]-2; j++) {*/
     eta = (double)(j) * dnym1;
-    FOR_RND_START(i, cit2, 1, grid_points[0]-2, CIT_STEP1) {
+    FOR_START(i, cit2, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
     /*for (i = 1; i <= grid_points[0]-2; i++) {*/
       xi = (double)(i) * dnxm1;
 
-      FOR_RND_START(k, cit3, 0, grid_points[2]-1, CIT_STEP1) {
+      FOR_START(k, cit3, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
       /*for (k = 0; k <= grid_points[2]-1; k++) {*/
         zeta = (double)(k) * dnzm1;
 
         exact_solution(xi, eta, zeta, dtemp);
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           ue[k][m] = dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         dtpp = 1.0/dtemp[0];
 
-        FOR_RND_START(m, cit4, 1, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 1, 4+1, 1, cit_step_add, RND) {
         /*for (m = 1; m < 5; m++) {*/
           buf[k][m] = dtpp * dtemp[m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
         cuf[k]    = buf[k][3] * buf[k][3];
         buf[k][0] = cuf[k] + buf[k][1] * buf[k][1] + buf[k][2] * buf[k][2];
         q[k] = 0.5*(buf[k][1]*ue[k][1] + buf[k][2]*ue[k][2] +
                     buf[k][3]*ue[k][3]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 1, grid_points[2]-2, CIT_STEP1) {
+      FOR_START(k, cit3, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
       /*for (k = 1; k <= grid_points[2]-2; k++) {*/
         km1 = k-1;
         kp1 = k+1;
@@ -567,12 +567,12 @@ void exact_rhs()
           zzcon5*(buf[kp1][4]-2.0*buf[k][4]+buf[km1][4])+
           dz5tz1*( ue[kp1][4]-2.0*ue[k][4]+ ue[km1][4]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // Fourth-order dissipation
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         k = 1;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -582,21 +582,21 @@ void exact_rhs()
           (-4.0*ue[k-1][m] + 6.0*ue[k][m] -
            4.0*ue[k+1][m] +       ue[k+2][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 3, grid_points[2]-4, CIT_STEP1) {
+      FOR_START(k, cit3, 3, grid_points[2]-4+1, 1, cit_step_add, RND) {
       /*for (k = 3; k <= grid_points[2]-4; k++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           forcing[k][j][i][m] = forcing[k][j][i][m] - dssp*
             (ue[k-2][m] - 4.0*ue[k-1][m] +
              6.0*ue[k][m] - 4.0*ue[k+1][m] + ue[k+2][m]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         k = grid_points[2]-3;
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
@@ -606,12 +606,12 @@ void exact_rhs()
         forcing[k][j][i][m] = forcing[k][j][i][m] - dssp *
           (ue[k-2][m] - 4.0*ue[k-1][m] + 5.0*ue[k][m]);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (j = 1; j <= grid_points[1]-2; j++) {
     eta = (double)(j) * dnym1;
@@ -711,23 +711,23 @@ void exact_rhs()
   // now change the sign of the forcing function,
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= grid_points[2]-2; k++) {*/
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
     /*for (j = 1; j <= grid_points[1]-2; j++) {*/
-      FOR_RND_START(i, cit3, 1, grid_points[0]-2, CIT_STEP1) {
+      FOR_START(i, cit3, 1, grid_points[0]-2+1, 1, cit_step_add, RND) {
       /*for (i = 1; i <= grid_points[0]-2; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           forcing[k][j][i][m] = -1.0 * forcing[k][j][i][m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {

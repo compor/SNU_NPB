@@ -33,6 +33,9 @@
 
 #include <assert.h>
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 static void pc_corner(int imor);
 static void com_dpc(int iside, int iel, int enumber, int n, int isize);
@@ -48,15 +51,60 @@ void setuppc()
 {
   double dxtm1_2[LX1][LX1], rdtime;
   int ie, k, i, j, q, isize;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      dxtm1_2[j][i] = dxtm1[j][i]*dxtm1[j][i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       dxtm1_2[j][i] = dxtm1[j][i]*dxtm1[j][i];
     }
   }
+#endif // USE_CITERATOR
 
   rdtime = 1.0/dtime;
 
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    r_init(dpcelm[ie][0][0], NXYZ, 0.0);
+    isize = size_e[ie];
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          FOR_START(q, cit5, 0, LX1, 1, cit_step_add, RND) {
+          /*for (q = 0; q < LX1; q++) {*/
+            dpcelm[ie][k][j][i] = dpcelm[ie][k][j][i] +
+              g1m1_s[isize][k][j][q] * dxtm1_2[q][i] +
+              g1m1_s[isize][k][q][i] * dxtm1_2[q][j] +
+              g1m1_s[isize][q][j][i] * dxtm1_2[q][k];
+          }
+          FOR_END(cit5);
+          dpcelm[ie][k][j][i] = VISC*dpcelm[ie][k][j][i]+
+                                rdtime*bm1_s[isize][k][j][i];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ie = 0; ie < nelt; ie++) {
     r_init(dpcelm[ie][0][0], NXYZ, 0.0);
     isize = size_e[ie];
@@ -64,7 +112,7 @@ void setuppc()
       for (j = 0; j < LX1; j++) {
         for (i = 0; i < LX1; i++) {
           for (q = 0; q < LX1; q++) {
-            dpcelm[ie][k][j][i] = dpcelm[ie][k][j][i] + 
+            dpcelm[ie][k][j][i] = dpcelm[ie][k][j][i] +
               g1m1_s[isize][k][j][q] * dxtm1_2[q][i] +
               g1m1_s[isize][k][q][i] * dxtm1_2[q][j] +
               g1m1_s[isize][q][j][i] * dxtm1_2[q][k];
@@ -75,6 +123,7 @@ void setuppc()
       }
     }
   }
+#endif // USE_CITERATOR
 
   // do the stiffness summation
   dssum();
@@ -82,8 +131,8 @@ void setuppc()
   // take inverse.
   reciprocal((double *)dpcelm, ntot);
 
-  // compute preconditioner on mortar points. NOTE:  dpcmor for 
-  // nonconforming cases will be corrected in subroutine setpcmo 
+  // compute preconditioner on mortar points. NOTE:  dpcmor for
+  // nonconforming cases will be corrected in subroutine setpcmo
   for (i = 0; i < nmor; i++) {
     dpcmor[i] = 1.0/dpcmor[i];
   }
@@ -91,31 +140,63 @@ void setuppc()
 
 
 //--------------------------------------------------------------
-// pre-compute elemental contribution to preconditioner  
+// pre-compute elemental contribution to preconditioner
 // for all situations
 //--------------------------------------------------------------
 void setpcmo_pre()
 {
   int element_size, i, j, ii, jj, col;
-  double p[LX1][LX1][LX1], p0[LX1][LX1][LX1], mtemp[LX1][LX1]; 
+  double p[LX1][LX1][LX1], p0[LX1][LX1][LX1], mtemp[LX1][LX1];
   double temp[LX1][LX1][LX1], temp1[LX1][LX1], tmp[LX1][LX1], tig[LX1];
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
-  // corners on face of type 3 
+  // corners on face of type 3
   r_init((double *)tcpre, LX1*LX1, 0.0);
   r_init((double *)tmp, LX1*LX1, 0.0);
   r_init(tig, 5, 0.0);
   tig[0]    = 1.0;
   tmp[0][0] = 1.0;
 
-  // tcpre results from mapping a unit spike field (unity at 
+  // tcpre results from mapping a unit spike field (unity at
   // collocation point (0,0), zero elsewhere) on an entire element
   // face to the (0,0) segment of a nonconforming face
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      tmp[0][i] = tmp[0][i]+ qbnew[0][j][i-1]*tig[j];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     for (j = 0; j < LX1; j++) {
       tmp[0][i] = tmp[0][i]+ qbnew[0][j][i-1]*tig[j];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (col = 0; col < LX1; col++) {*/
+    tcpre[0][col] = tmp[0][col];
+
+    FOR_START(j, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1-1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        tcpre[j][col] = tcpre[j][col] + qbnew[0][i][j-1]*tmp[i][col];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 0; col < LX1; col++) {
     tcpre[0][col] = tmp[0][col];
 
@@ -125,13 +206,370 @@ void setpcmo_pre()
       }
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(element_size, cit1, 0, REFINE_MAX, 1, cit_step_add, RND) {
+  /*for (element_size = 0; element_size < REFINE_MAX; element_size++) {*/
+    // for conforming cases
+
+    // pcmor_c[element_size][j][i] records the intermediate value
+    // (preconditioner=1/pcmor_c) of the preconditor on collocation
+    // point (i,j) on a conforming face of an element of size
+    // element_size.
+
+    FOR_START(j, cit2, 0, LX1/2+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1/2+1; j++) {*/
+      FOR_START(i, cit3, j, LX1/2+1, 1, cit_step_add, RND) {
+      /*for (i = j; i < LX1/2+1; i++) {*/
+        r_init((double *)p, NXYZ, 0.0);
+        p[0][j][i] = 1.0;
+        laplacian(temp, p, element_size);
+        pcmor_c[element_size][j][i]             = temp[0][j][i];
+        pcmor_c[element_size][j][LX1-1-i]       = temp[0][j][i];
+        pcmor_c[element_size][i][j]             = temp[0][j][i];
+        pcmor_c[element_size][i][LX1-1-j]       = temp[0][j][i];
+        pcmor_c[element_size][LX1-1-i][j]       = temp[0][j][i];
+        pcmor_c[element_size][LX1-1-i][LX1-1-j] = temp[0][j][i];
+        pcmor_c[element_size][LX1-1-j][i]       = temp[0][j][i];
+        pcmor_c[element_size][LX1-1-j][LX1-1-i] = temp[0][j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+
+    // for nonconforming cases
+
+    // nonconforming face interior
+
+    // pcmor_nc1[element_size][jj][ii][j][i] records the intermediate
+    // preconditioner value on collocation point (i,j) on mortar
+    // (ii,jj)  on a nonconforming face of an element of size element_
+    // size
+    FOR_START(j, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1; j++) {*/
+      FOR_START(i, cit3, j, LX1, 1, cit_step_add, RND) {
+      /*for (i = j; i < LX1; i++) {*/
+        r_init((double *)mtemp, LX1*LX1, 0.0);
+        r_init((double *)p, NXYZ, 0.0);
+        mtemp[j][i] = 1.0;
+        // when i, j=LX1-1, mortar points are duplicated, so mtemp needs
+        // to be doubled.
+        if (i == (LX1-1)) mtemp[j][i] = mtemp[j][i]*2.0;
+        if (j == (LX1-1)) mtemp[j][i] = mtemp[j][i]*2.0;
+        transf_nc(mtemp, (double (*)[LX1])p);
+        laplacian(temp, p, element_size);
+        transfb_nc1(temp1, (double (*)[LX1])temp);
+
+        // values at points (i,j) and (j,i) are the same
+        pcmor_nc1[element_size][0][0][j][i] = temp1[j][i];
+        pcmor_nc1[element_size][0][0][i][j] = temp1[j][i];
+      }
+      FOR_END(cit3);
+
+      // when i, j=LX1-1, mortar points are duplicated. so pcmor_nc1 needs
+      // to be doubled on those points
+      pcmor_nc1[element_size][0][0][j][LX1-1]=
+        pcmor_nc1[element_size][0][0][j][LX1-1]*2.0;
+      pcmor_nc1[element_size][0][0][LX1-1][j]=
+        pcmor_nc1[element_size][0][0][j][LX1-1];
+    }
+    FOR_END(cit2);
+    pcmor_nc1[element_size][0][0][LX1-1][LX1-1]=
+      pcmor_nc1[element_size][0][0][LX1-1][LX1-1]*2.0;
+
+    // nonconforming edges
+    j = 0;
+    FOR_START(i, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      r_init((double *)mtemp, LX1*LX1, 0.0);
+      r_init((double *)p, NXYZ, 0.0);
+      r_init((double *)p0, NXYZ, 0.0);
+      mtemp[j][i] = 1.0;
+      if (i == (LX1-1)) mtemp[j][i] = 2.0;
+      transf_nc(mtemp, (double (*)[LX1])p);
+      laplacian(temp, p, element_size);
+      transfb_nc1(temp1, (double (*)[LX1])temp);
+      pcmor_nc1[element_size][0][0][j][i] = temp1[j][i];
+      pcmor_nc1[element_size][0][0][i][j] = temp1[j][i];
+
+      FOR_START(ii, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (ii = 0; ii < LX1; ii++) {*/
+        // p0 is for the case that a nonconforming edge is shared by
+        // two conforming faces
+        p0[0][0][ii] = p[0][0][ii];
+        FOR_START(jj, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (jj = 0; jj < LX1; jj++) {*/
+          // now p is for the case that a nonconforming edge is shared
+          // by nonconforming faces
+          p[jj][0][ii] = p[0][jj][ii];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+
+      laplacian(temp, p, element_size);
+      transfb_nc2(temp1, (double (*)[LX1])temp);
+
+      // pcmor_nc2[element_size][jj][ii][j][i] gives the intermediate
+      // preconditioner value on collocation point (i,j) on a
+      // nonconforming face of an element with size size_element
+
+      pcmor_nc2[element_size][0][0][j][i] = temp1[j][i]*2.0 ;
+      pcmor_nc2[element_size][0][0][i][j] =
+        pcmor_nc2[element_size][0][0][j][i];
+
+      laplacian(temp, p0, element_size);
+      transfb_nc0(temp1, temp);
+
+      // pcmor_nc0[element_size][jj][ii][j][i] gives the intermediate
+      // preconditioner value on collocation point (i,j) on a
+      // conforming face of an element, which shares a nonconforming
+      // edge with another conforming face
+      pcmor_nc0[element_size][0][0][j][i] = temp1[j][i];
+      pcmor_nc0[element_size][0][0][i][j] = temp1[j][i];
+    }
+    FOR_END(cit2);
+    pcmor_nc1[element_size][0][0][j][LX1-1] =
+      pcmor_nc1[element_size][0][0][j][LX1-1]*2.0;
+    pcmor_nc1[element_size][0][0][LX1-1][j] =
+      pcmor_nc1[element_size][0][0][j][LX1-1];
+    pcmor_nc2[element_size][0][0][j][LX1-1] =
+      pcmor_nc2[element_size][0][0][j][LX1-1]*2.0;
+    pcmor_nc2[element_size][0][0][LX1-1][j] =
+      pcmor_nc2[element_size][0][0][j][LX1-1];
+    pcmor_nc0[element_size][0][0][j][LX1-1] =
+      pcmor_nc0[element_size][0][0][j][LX1-1]*2.0;
+    pcmor_nc0[element_size][0][0][LX1-1][j] =
+      pcmor_nc0[element_size][0][0][j][LX1-1];
+
+    // symmetrical copy
+    FOR_START(i, cit2, 0, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1-1; i++) {*/
+      pcmor_nc1[element_size][1][0][j][i] =
+        pcmor_nc1[element_size][0][0][j][LX1-1-i];
+      pcmor_nc0[element_size][1][0][j][i] =
+        pcmor_nc0[element_size][0][0][j][LX1-1-i];
+      pcmor_nc2[element_size][1][0][j][i] =
+        pcmor_nc2[element_size][0][0][j][LX1-1-i];
+    }
+    FOR_END(cit2);
+
+    FOR_START(j, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1-1; i++) {*/
+        pcmor_nc1[element_size][1][0][j][i] =
+          pcmor_nc1[element_size][0][0][j][LX1-1-i];
+      }
+      FOR_END(cit3);
+      i = LX1-1;
+      pcmor_nc1[element_size][1][0][j][i] =
+        pcmor_nc1[element_size][0][0][j][LX1-1-i];
+      pcmor_nc0[element_size][1][0][j][i] =
+        pcmor_nc0[element_size][0][0][j][LX1-1-i];
+      pcmor_nc2[element_size][1][0][j][i] =
+        pcmor_nc2[element_size][0][0][j][LX1-1-i];
+    }
+    FOR_END(cit2);
+
+    j = 0;
+    i = 0;
+    pcmor_nc1[element_size][0][1][j][i] =
+      pcmor_nc1[element_size][0][0][LX1-1-j][i];
+    pcmor_nc0[element_size][0][1][j][i] =
+      pcmor_nc0[element_size][0][0][LX1-1-j][i];
+    pcmor_nc2[element_size][0][1][j][i] =
+      pcmor_nc2[element_size][0][0][LX1-1-j][i];
+    FOR_START(j, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1-1; j++) {*/
+      i = 0;
+      pcmor_nc1[element_size][0][1][j][i] =
+        pcmor_nc1[element_size][0][0][LX1-1-j][i];
+      pcmor_nc0[element_size][0][1][j][i] =
+        pcmor_nc0[element_size][0][0][LX1-1-j][i];
+      pcmor_nc2[element_size][0][1][j][i] =
+        pcmor_nc2[element_size][0][0][LX1-1-j][i];
+      FOR_START(i, cit3, 1, LX1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1; i++) {*/
+        pcmor_nc1[element_size][0][1][j][i] =
+          pcmor_nc1[element_size][0][0][LX1-1-j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+
+    j = LX1-1;
+    FOR_START(i, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      pcmor_nc1[element_size][0][1][j][i] =
+        pcmor_nc1[element_size][0][0][LX1-1-j][i];
+      pcmor_nc0[element_size][0][1][j][i] =
+        pcmor_nc0[element_size][0][0][LX1-1-j][i];
+      pcmor_nc2[element_size][0][1][j][i] =
+        pcmor_nc2[element_size][0][0][LX1-1-j][i];
+    }
+    FOR_END(cit2);
+
+    j = 0;
+    i = LX1-1;
+    pcmor_nc1[element_size][1][1][j][i] =
+      pcmor_nc1[element_size][0][0][LX1-1-j][LX1-1-i];
+    pcmor_nc0[element_size][1][1][j][i] =
+      pcmor_nc0[element_size][0][0][LX1-1-j][LX1-1-i];
+    pcmor_nc2[element_size][1][1][j][i] =
+      pcmor_nc2[element_size][0][0][LX1-1-j][LX1-1-i];
+
+    FOR_START(j, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1-1; j++) {*/
+      FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        pcmor_nc1[element_size][1][1][j][i] =
+          pcmor_nc1[element_size][0][0][LX1-1-j][LX1-1-i];
+      }
+      FOR_END(cit3);
+      i = LX1-1;
+      pcmor_nc1[element_size][1][1][j][i] =
+        pcmor_nc1[element_size][0][0][LX1-1-j][LX1-1-i];
+      pcmor_nc0[element_size][1][1][j][i] =
+        pcmor_nc0[element_size][0][0][LX1-1-j][LX1-1-i];
+      pcmor_nc2[element_size][1][1][j][i] =
+        pcmor_nc2[element_size][0][0][LX1-1-j][LX1-1-i];
+    }
+    FOR_END(cit2);
+    j = LX1-1;
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      pcmor_nc1[element_size][1][1][j][i] =
+        pcmor_nc1[element_size][0][0][LX1-1-j][LX1-1-i];
+      pcmor_nc0[element_size][1][1][j][i] =
+        pcmor_nc0[element_size][0][0][LX1-1-j][LX1-1-i];
+      pcmor_nc2[element_size][1][1][j][i] =
+        pcmor_nc2[element_size][0][0][LX1-1-j][LX1-1-i];
+    }
+    FOR_END(cit2);
+
+
+    // vertices shared by at least one nonconforming face or edge
+
+    // Among three edges and three faces sharing a vertex on an element
+    // situation 1: only one edge is nonconforming
+    // situation 2: two edges are nonconforming
+    // situation 3: three edges are nonconforming
+    // situation 4: one face is nonconforming
+    // situation 5: one face and one edge are nonconforming
+    // situation 6: two faces are nonconforming
+    // situation 7: three faces are nonconforming
+
+    r_init((double *)p0, NXYZ, 0.0);
+    p0[0][0][0] = 1.0;
+    laplacian(temp, p0, element_size);
+    pcmor_cor[element_size][7] = temp[0][0][0];
+
+    // situation 1
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      p0[0][0][i] = tcpre[0][i];
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_e(1, &pcmor_cor[element_size][0], temp);
+
+    // situation 2
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      p0[0][0][i] = tcpre[0][i];
+      p0[0][i][0] = tcpre[0][i];
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_e(2, &pcmor_cor[element_size][1], temp);
+
+    // situation 3
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      p0[0][0][i] = tcpre[0][i];
+      p0[0][i][0] = tcpre[0][i];
+      p0[i][0][0] = tcpre[0][i];
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_e(3, &pcmor_cor[element_size][2], temp);
+
+    // situation 4
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        p0[0][j][i] = tcpre[j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_f(4, &pcmor_cor[element_size][3], temp);
+
+    // situation 5
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        p0[0][j][i] = tcpre[j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      p0[i][0][0] = tcpre[0][i];
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_f(5, &pcmor_cor[element_size][4], temp);
+
+    // situation 6
+    r_init((double *)p0, NXYZ, 0.0);
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        p0[0][j][i] = tcpre[j][i];
+        p0[j][0][i] = tcpre[j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_f(6, &pcmor_cor[element_size][5], temp);
+
+    // situation 7
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        p0[0][j][i] = tcpre[j][i];
+        p0[j][0][i] = tcpre[j][i];
+        p0[j][i][0] = tcpre[j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    laplacian(temp, p0, element_size);
+    transfb_cor_f(7, &pcmor_cor[element_size][6], temp);
+  }
+  FOR_END(cit1);
+#else
   for (element_size = 0; element_size < REFINE_MAX; element_size++) {
     // for conforming cases
 
-    // pcmor_c[element_size][j][i] records the intermediate value 
-    // (preconditioner=1/pcmor_c) of the preconditor on collocation 
-    // point (i,j) on a conforming face of an element of size 
+    // pcmor_c[element_size][j][i] records the intermediate value
+    // (preconditioner=1/pcmor_c) of the preconditor on collocation
+    // point (i,j) on a conforming face of an element of size
     // element_size.
 
     for (j = 0; j < LX1/2+1; j++) {
@@ -150,12 +588,12 @@ void setpcmo_pre()
       }
     }
 
-    // for nonconforming cases 
+    // for nonconforming cases
 
     // nonconforming face interior
 
-    // pcmor_nc1[element_size][jj][ii][j][i] records the intermediate 
-    // preconditioner value on collocation point (i,j) on mortar 
+    // pcmor_nc1[element_size][jj][ii][j][i] records the intermediate
+    // preconditioner value on collocation point (i,j) on mortar
     // (ii,jj)  on a nonconforming face of an element of size element_
     // size
     for (j = 1; j < LX1; j++) {
@@ -212,10 +650,10 @@ void setpcmo_pre()
       }
 
       laplacian(temp, p, element_size);
-      transfb_nc2(temp1, (double (*)[LX1])temp);       
+      transfb_nc2(temp1, (double (*)[LX1])temp);
 
       // pcmor_nc2[element_size][jj][ii][j][i] gives the intermediate
-      // preconditioner value on collocation point (i,j) on a 
+      // preconditioner value on collocation point (i,j) on a
       // nonconforming face of an element with size size_element
 
       pcmor_nc2[element_size][0][0][j][i] = temp1[j][i]*2.0 ;
@@ -223,11 +661,11 @@ void setpcmo_pre()
         pcmor_nc2[element_size][0][0][j][i];
 
       laplacian(temp, p0, element_size);
-      transfb_nc0(temp1, temp);         
+      transfb_nc0(temp1, temp);
 
       // pcmor_nc0[element_size][jj][ii][j][i] gives the intermediate
-      // preconditioner value on collocation point (i,j) on a 
-      // conforming face of an element, which shares a nonconforming 
+      // preconditioner value on collocation point (i,j) on a
+      // conforming face of an element, which shares a nonconforming
       // edge with another conforming face
       pcmor_nc0[element_size][0][0][j][i] = temp1[j][i];
       pcmor_nc0[element_size][0][0][i][j] = temp1[j][i];
@@ -267,7 +705,7 @@ void setpcmo_pre()
         pcmor_nc0[element_size][0][0][j][LX1-1-i];
       pcmor_nc2[element_size][1][0][j][i] =
         pcmor_nc2[element_size][0][0][j][LX1-1-i];
-    }                                                
+    }
 
     j = 0;
     i = 0;
@@ -340,8 +778,8 @@ void setpcmo_pre()
     // situation 1: only one edge is nonconforming
     // situation 2: two edges are nonconforming
     // situation 3: three edges are nonconforming
-    // situation 4: one face is nonconforming 
-    // situation 5: one face and one edge are nonconforming 
+    // situation 4: one face is nonconforming
+    // situation 5: one face and one edge are nonconforming
     // situation 6: two faces are nonconforming
     // situation 7: three faces are nonconforming
 
@@ -422,6 +860,7 @@ void setpcmo_pre()
     laplacian(temp, p0, element_size);
     transfb_cor_f(7, &pcmor_cor[element_size][6], temp);
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -432,10 +871,153 @@ void setpcmo_pre()
 void setpcmo()
 {
   int face2, nb1, nb2, sizei, imor, _enum, i, j, iel, iside, nn1, nn2;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6;
+#endif // USE_CITERATOR
 
   l_init(ifpcmor, nvertex, false);
   l_init((logical *)edgevis, 24*nelt, false);
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    FOR_START(iside, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iside = 0; iside < NSIDES; iside++) {*/
+      // for nonconforming faces
+      if (cbc[iel][iside] == 3) {
+        sizei = size_e[iel];
+
+        // vertices
+
+        // ifpcmor[imor] = true indicates that mortar point imor has
+        // been visited
+        imor = idmo[iel][iside][0][0][0][0];
+        if (!ifpcmor[imor]) {
+          // compute the preconditioner on mortar point imor
+          pc_corner(imor);
+          ifpcmor[imor] = true;
+        }
+
+        imor = idmo[iel][iside][1][0][0][LX1-1];
+        if (!ifpcmor[imor]) {
+          pc_corner(imor);
+          ifpcmor[imor] = true;
+        }
+
+        imor = idmo[iel][iside][0][1][LX1-1][0];
+        if (!ifpcmor[imor]) {
+          pc_corner(imor);
+          ifpcmor[imor] = true;
+        }
+
+        imor = idmo[iel][iside][1][1][LX1-1][LX1-1];
+        if (!ifpcmor[imor]) {
+          pc_corner(imor);
+          ifpcmor[imor] = true;
+        }
+
+        // edges on nonconforming faces, _enum is local edge number
+        FOR_START(_enum, cit3, 0, 4, 1, cit_step_add, RND) {
+        /*for (_enum = 0; _enum < 4; _enum++) {*/
+          // edgevis[iel][iside][_enum]=true indicates that local edge
+          // _enum of face iside of iel has been visited
+          if (!edgevis[iel][iside][_enum]) {
+            edgevis[iel][iside][_enum] = true;
+
+            // Examing neighbor element information,
+            // calculateing the preconditioner value.
+            face2 = f_e_ef[iside][_enum];
+            if (cbc[iel][face2] == 2) {
+              nb1 = sje[iel][face2][0][0];
+              if (cbc[nb1][iside] == 2) {
+
+                // Compute the preconditioner on local edge _enum on face
+                // iside of element iel, 1 is neighborhood information got
+                // by examing neighbors(nb1). For detailed meaning of 1,
+                // see subroutine com_dpc.
+
+                com_dpc(iside, iel, _enum, 1, sizei);
+                nb2 = sje[nb1][iside][0][0];
+                edgevis[nb2][jjface[face2]][op[e_face2[iside][_enum]]] = true;
+
+              } else if (cbc[nb1][iside] == 3) {
+                com_dpc(iside, iel, _enum, 2, sizei);
+                edgevis[nb1][iside][op[_enum]] = true;
+              }
+
+            } else if (cbc[iel][face2] == 3) {
+              edgevis[iel][face2][e_face2[iside][_enum]] = true;
+              nb1 = sje[iel][face2][1][0];
+              if (cbc[nb1][iside] == 1) {
+                com_dpc(iside, iel, _enum, 3, sizei);
+                nb2 = sje[nb1][iside][0][0];
+                edgevis[nb2][jjface[iside]][op[_enum]] = true;
+                edgevis[nb2][jjface[face2]][op[e_face2[iside][_enum]]] = true;
+              } else if (cbc[nb1][iside] == 2) {
+                com_dpc(iside, iel, _enum, 4, sizei);
+              }
+            } else if (cbc[iel][face2] == 0) {
+              com_dpc(iside, iel, _enum, 0, sizei);
+            }
+          }
+        }
+        FOR_END(cit3);
+
+        // mortar element interior (not edge of mortar)
+        FOR_START(nn1, cit3, 0, 2, 1, cit_step_add, RND) {
+        /*for (nn1 = 0; nn1 < 2; nn1++) {*/
+          FOR_START(nn2, cit4, 0, 2, 1, cit_step_add, RND) {
+          /*for (nn2 = 0; nn2 < 2; nn2++) {*/
+            FOR_START(j, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+            /*for (j = 1; j < LX1-1; j++) {*/
+              FOR_START(i, cit6, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                imor = idmo[iel][iside][nn2][nn1][j][i];
+                dpcmor[imor] = 1.0/(pcmor_nc1[sizei][nn2][nn1][j][i]+
+                                    pcmor_c[sizei+1][j][i]);
+              }
+              FOR_END(cit6);
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // for i,j=LX1-1 there are duplicated mortar points, so
+        // pcmor_c needs to be doubled or quadrupled
+        i = LX1-1;
+        FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (j = 1; j < LX1-1; j++) {*/
+          imor = idmo[iel][iside][0][0][j][i];
+          dpcmor[imor] = 1.0/(pcmor_nc1[sizei][0][0][j][i]+
+                              pcmor_c[sizei+1][j][i]*2.0);
+          imor = idmo[iel][iside][0][1][j][i];
+          dpcmor[imor] = 1.0/(pcmor_nc1[sizei][0][1][j][i]+
+                              pcmor_c[sizei+1][j][i]*2.0);
+        }
+        FOR_END(cit3);
+
+        j = LX1-1;
+        imor = idmo[iel][iside][0][0][j][i];
+        dpcmor[imor] = 1.0/(pcmor_nc1[sizei][0][0][j][i]+
+                            pcmor_c[sizei+1][j][i]*4.0);
+        FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (i = 1; i < LX1-1; i++) {*/
+          imor = idmo[iel][iside][0][0][j][i];
+          dpcmor[imor] = 1.0/(pcmor_nc1[sizei][0][0][j][i]+
+                              pcmor_c[sizei+1][j][i]*2.0);
+          imor = idmo[iel][iside][1][0][j][i];
+          dpcmor[imor] = 1.0/(pcmor_nc1[sizei][1][0][j][i]+
+                              pcmor_c[sizei+1][j][i]*2.0);
+        }
+        FOR_END(cit3);
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     for (iside = 0; iside < NSIDES; iside++) {
       // for nonconforming faces
@@ -444,7 +1026,7 @@ void setpcmo()
 
         // vertices
 
-        // ifpcmor[imor] = true indicates that mortar point imor has 
+        // ifpcmor[imor] = true indicates that mortar point imor has
         // been visited
         imor = idmo[iel][iside][0][0][0][0];
         if (!ifpcmor[imor]) {
@@ -473,7 +1055,7 @@ void setpcmo()
 
         // edges on nonconforming faces, _enum is local edge number
         for (_enum = 0; _enum < 4; _enum++) {
-          // edgevis[iel][iside][_enum]=true indicates that local edge 
+          // edgevis[iel][iside][_enum]=true indicates that local edge
           // _enum of face iside of iel has been visited
           if (!edgevis[iel][iside][_enum]) {
             edgevis[iel][iside][_enum] = true;
@@ -487,7 +1069,7 @@ void setpcmo()
 
                 // Compute the preconditioner on local edge _enum on face
                 // iside of element iel, 1 is neighborhood information got
-                // by examing neighbors(nb1). For detailed meaning of 1, 
+                // by examing neighbors(nb1). For detailed meaning of 1,
                 // see subroutine com_dpc.
 
                 com_dpc(iside, iel, _enum, 1, sizei);
@@ -516,7 +1098,7 @@ void setpcmo()
           }
         }
 
-        // mortar element interior (not edge of mortar) 
+        // mortar element interior (not edge of mortar)
         for (nn1 = 0; nn1 < 2; nn1++) {
           for (nn2 = 0; nn2 < 2; nn2++) {
             for (j = 1; j < LX1-1; j++) {
@@ -529,7 +1111,7 @@ void setpcmo()
           }
         }
 
-        // for i,j=LX1-1 there are duplicated mortar points, so 
+        // for i,j=LX1-1 there are duplicated mortar points, so
         // pcmor_c needs to be doubled or quadrupled
         i = LX1-1;
         for (j = 1; j < LX1-1; j++) {
@@ -553,9 +1135,10 @@ void setpcmo()
           dpcmor[imor] = 1.0/(pcmor_nc1[sizei][1][0][j][i]+
                               pcmor_c[sizei+1][j][i]*2.0);
         }
-      } 
+      }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -567,9 +1150,70 @@ static void pc_corner(int imor)
   double tmortemp;
   int inemo, ie, sizei, cornernumber;
   int sface, sedge, iiface, iface, iiedge, iedge, n = 0;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   tmortemp = 0.0;
   // loop over all elements sharing this vertex
+#ifdef USE_CITERATOR
+  FOR_START(inemo, cit1, 0, nemo[imor]+1, 1, cit_step_add, RND) {
+  /*for (inemo = 0; inemo <= nemo[imor]; inemo++) {*/
+    ie = emo[imor][inemo][0];
+    sizei = size_e[ie];
+    cornernumber = emo[imor][inemo][1];
+    sface = 0;
+    sedge = 0;
+    FOR_START(iiface, cit2, 0, 3, 1, cit_step_add, RND) {
+    /*for (iiface = 0; iiface < 3; iiface++) {*/
+      iface = f_c[cornernumber][iiface];
+      // sface sums the number of nonconforming faces sharing this vertex on
+      // one element
+      if (cbc[ie][iface] == 3) {
+        sface = sface+1;
+      }
+    }
+    FOR_END(cit2);
+    // sedge sums the number of nonconforming edges sharing this vertex on
+    // one element
+    FOR_START(iiedge, cit2, 0, 3, 1, cit_step_add, RND) {
+    /*for (iiedge = 0; iiedge < 3; iiedge++) {*/
+      iedge = e_c[cornernumber][iiedge];
+      if (ncon_edge[ie][iedge]) sedge = sedge+1;
+    }
+    FOR_END(cit2);
+
+    // each n indicates how many nonconforming faces and nonconforming
+    // edges share this vertex on an element,
+
+    if (sface == 0) {
+      if (sedge == 0) {
+        n = 7;
+      } else if (sedge == 1) {
+        n = 0;
+      } else if (sedge == 2) {
+        n = 1;
+      } else if (sedge == 3) {
+        n = 2;
+      }
+    } else if (sface == 1) {
+      if (sedge == 1) {
+        n = 4;
+      } else {
+        n = 3;
+      }
+    } else if (sface == 2) {
+      n = 5;
+    } else if (sface == 3) {
+      n = 6;
+    }
+
+    // sum the intermediate pre-computed preconditioner values for
+    // all elements
+    tmortemp = tmortemp+pcmor_cor[sizei][n];
+  }
+  FOR_END(cit1);
+#else
   for (inemo = 0; inemo <= nemo[imor]; inemo++) {
     ie = emo[imor][inemo][0];
     sizei = size_e[ie];
@@ -592,7 +1236,7 @@ static void pc_corner(int imor)
     }
 
     // each n indicates how many nonconforming faces and nonconforming
-    // edges share this vertex on an element, 
+    // edges share this vertex on an element,
 
     if (sface == 0) {
       if (sedge == 0) {
@@ -603,7 +1247,7 @@ static void pc_corner(int imor)
         n = 1;
       } else if (sedge == 3) {
         n = 2;
-      } 
+      }
     } else if (sface == 1) {
       if (sedge == 1) {
         n = 4;
@@ -616,10 +1260,11 @@ static void pc_corner(int imor)
       n = 6;
     }
 
-    // sum the intermediate pre-computed preconditioner values for 
+    // sum the intermediate pre-computed preconditioner values for
     // all elements
     tmortemp = tmortemp+pcmor_cor[sizei][n];
   }
+#endif // USE_CITERATOR
 
   // dpcmor[imor] is the value of the preconditioner on mortar point imor
   dpcmor[imor] = 1.0/tmortemp;
@@ -627,11 +1272,11 @@ static void pc_corner(int imor)
 
 
 //------------------------------------------------------------------------
-// Compute preconditioner for local edge enumber of face iside 
+// Compute preconditioner for local edge enumber of face iside
 // on element iel.
 // isize is element size,
 // n is one of five different configurations
-// anc1, ac, anc2, anc0 are coefficients for different edges. 
+// anc1, ac, anc2, anc0 are coefficients for different edges.
 // nc0 refers to nonconforming edge shared by two conforming faces
 // nc1 refers to nonconforming edge shared by one nonconforming face
 // nc2 refers to nonconforming edges shared by two nonconforming faces
@@ -639,11 +1284,14 @@ static void pc_corner(int imor)
 //------------------------------------------------------------------------
 static void com_dpc(int iside, int iel, int enumber, int n, int isize)
 {
-  int nn1start, nn1end, nn2start; 
+  int nn1start, nn1end, nn2start;
   int nn2end, jstart, jend, istart, iend, i, j, nn1, nn2, imor = 0;
   double anc1, ac, anc2, anc0, temp = 0.0;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
-  // different local edges have different loop ranges 
+  // different local edges have different loop ranges
   if (enumber == 0) {
     nn1start = 1;
     nn1end = 1;
@@ -739,6 +1387,30 @@ static void com_dpc(int iside, int iel, int enumber, int n, int isize)
   }
 
   // edge interior
+#ifdef USE_CITERATOR
+  FOR_START(nn2, cit1, nn2start-1, nn2end, 1, cit_step_add, RND) {
+  /*for (nn2 = nn2start-1; nn2 < nn2end; nn2++) {*/
+    FOR_START(nn1, cit2, nn1start-1, nn1end, 1, cit_step_add, RND) {
+    /*for (nn1 = nn1start-1; nn1 < nn1end; nn1++) {*/
+      FOR_START(j, cit3, jstart-1, jend, 1, cit_step_add, RND) {
+      /*for (j = jstart-1; j < jend; j++) {*/
+        FOR_START(i, cit4, istart-1, iend, 1, cit_step_add, RND) {
+        /*for (i = istart-1; i < iend; i++) {*/
+          imor = idmo[iel][iside][nn2][nn1][j][i];
+          temp = anc1* pcmor_nc1[isize][nn2][nn1][j][i] +
+                 ac*  pcmor_c[isize+1][j][i]+
+                 anc0*  pcmor_nc0[isize][nn2][nn1][j][i]+
+                 anc2*pcmor_nc2[isize][nn2][nn1][j][i];
+          dpcmor[imor] = 1.0/temp;
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (nn2 = nn2start-1; nn2 < nn2end; nn2++) {
     for (nn1 = nn1start-1; nn1 < nn1end; nn1++) {
       for (j = jstart-1; j < jend; j++) {
@@ -753,6 +1425,7 @@ static void com_dpc(int iside, int iel, int enumber, int n, int isize)
       }
     }
   }
+#endif // USE_CITERATOR
 
   // local edge 0
   if (enumber == 0) {

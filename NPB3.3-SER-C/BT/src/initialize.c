@@ -55,23 +55,23 @@ void initialize()
   // values are nonzero by initializing the whole thing here.
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
     /*for (j = 0; j <= grid_points[1]-1; j++) {*/
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= grid_points[0]-1; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           u[k][j][i][m] = 1.0;
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -88,35 +88,35 @@ void initialize()
   // first store the "interpolated" values everywhere on the grid
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
     /*for (j = 0; j <= grid_points[1]-1; j++) {*/
       eta = (double)(j) * dnym1;
-      FOR_RND_START(i, cit3, 0, grid_points[0]-1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= grid_points[0]-1; i++) {*/
         xi = (double)(i) * dnxm1;
 
-        FOR_RND_START(ix, cit4, 0, 1, CIT_STEP1) {
+        FOR_START(ix, cit4, 0, 1+1, 1, cit_step_add, RND) {
         /*for (ix = 0; ix < 2; ix++) {*/
           exact_solution((double)ix, eta, zeta, &Pface[ix][0][0]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
-        FOR_RND_START(iy, cit4, 0, 1, CIT_STEP1) {
+        FOR_START(iy, cit4, 0, 1+1, 1, cit_step_add, RND) {
         /*for (iy = 0; iy < 2; iy++) {*/
           exact_solution(xi, (double)iy , zeta, &Pface[iy][1][0]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
-        FOR_RND_START(iz, cit4, 0, 1, CIT_STEP1) {
+        FOR_START(iz, cit4, 0, 1+1, 1, cit_step_add, RND) {
         /*for (iz = 0; iz < 2; iz++) {*/
           exact_solution(xi, eta, (double)iz, &Pface[iz][2][0]);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
 
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           Pxi   = xi   * Pface[1][0][m] + (1.0-xi)   * Pface[0][0][m];
           Peta  = eta  * Pface[1][1][m] + (1.0-eta)  * Pface[0][1][m];
@@ -126,13 +126,13 @@ void initialize()
                           Pxi*Peta - Pxi*Pzeta - Peta*Pzeta +
                           Pxi*Peta*Pzeta;
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
@@ -177,22 +177,22 @@ void initialize()
   i = 0;
   xi = 0.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
     /*for (j = 0; j <= grid_points[1]-1; j++) {*/
       eta = (double)(j) * dnym1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
@@ -212,22 +212,22 @@ void initialize()
   i = grid_points[0]-1;
   xi = 1.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(j, cit2, 0, grid_points[1]-1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
     /*for (j = 0; j <= grid_points[1]-1; j++) {*/
       eta = (double)(j) * dnym1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
@@ -247,22 +247,22 @@ void initialize()
   j = 0;
   eta = 0.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(i, cit2, 0, grid_points[0]-1, CIT_STEP1) {
+    FOR_START(i, cit2, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
     /*for (i = 0; i <= grid_points[0]-1; i++) {*/
       xi = (double)(i) * dnxm1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
@@ -282,22 +282,22 @@ void initialize()
   j = grid_points[1]-1;
   eta = 1.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, grid_points[2]-1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
   /*for (k = 0; k <= grid_points[2]-1; k++) {*/
     zeta = (double)(k) * dnzm1;
-    FOR_RND_START(i, cit2, 0, grid_points[0]-1, CIT_STEP1) {
+    FOR_START(i, cit2, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
     /*for (i = 0; i <= grid_points[0]-1; i++) {*/
       xi = (double)(i) * dnxm1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
@@ -317,22 +317,22 @@ void initialize()
   k = 0;
   zeta = 0.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(j, cit1, 0, grid_points[1]-1, CIT_STEP1) {
+  FOR_START(j, cit1, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
   /*for (j = 0; j <= grid_points[1]-1; j++) {*/
     eta = (double)(j) * dnym1;
-    FOR_RND_START(i, cit2, 0, grid_points[0]-1, CIT_STEP1) {
+    FOR_START(i, cit2, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
     /*for (i =0; i <= grid_points[0]-1; i++) {*/
       xi = (double)(i) *dnxm1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (j = 0; j <= grid_points[1]-1; j++) {
     eta = (double)(j) * dnym1;
@@ -352,22 +352,22 @@ void initialize()
   k = grid_points[2]-1;
   zeta = 1.0;
 #ifdef USE_CITERATOR
-  FOR_RND_START(j, cit1, 0, grid_points[1]-1, CIT_STEP1) {
+  FOR_START(j, cit1, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
   /*for (j = 0; j <= grid_points[1]-1; j++) {*/
     eta = (double)(j) * dnym1;
-    FOR_RND_START(i, cit2, 0, grid_points[0]-1, CIT_STEP1) {
+    FOR_START(i, cit2, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
     /*for (i = 0; i <= grid_points[0]-1; i++) {*/
       xi = (double)(i) * dnxm1;
       exact_solution(xi, eta, zeta, temp);
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 4+1, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         u[k][j][i][m] = temp[m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (j = 0; j <= grid_points[1]-1; j++) {
     eta = (double)(j) * dnym1;
@@ -395,9 +395,9 @@ void lhsinit(double lhs[][3][5][5], int size)
   // zero the whole left hand side for starters
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(n, cit1, 0, 4, CIT_STEP1) {
+  FOR_START(n, cit1, 0, 4+1, 1, cit_step_add, RND) {
   /*for (n = 0; n < 5; n++) {*/
-    FOR_RND_START(m, cit2, 0, 4, CIT_STEP1) {
+    FOR_START(m, cit2, 0, 4+1, 1, cit_step_add, RND) {
     /*for (m = 0; m < 5; m++) {*/
       lhs[0][0][n][m] = 0.0;
       lhs[0][1][n][m] = 0.0;
@@ -406,9 +406,9 @@ void lhsinit(double lhs[][3][5][5], int size)
       lhs[i][1][n][m] = 0.0;
       lhs[i][2][n][m] = 0.0;
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (n = 0; n < 5; n++) {
     for (m = 0; m < 5; m++) {
@@ -426,12 +426,12 @@ void lhsinit(double lhs[][3][5][5], int size)
   // next, set all diagonal values to 1. This is overkill, but convenient
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(m, cit1, 0, 4, CIT_STEP1) {
+  FOR_START(m, cit1, 0, 4+1, 1, cit_step_add, RND) {
   /*for (m = 0; m < 5; m++) {*/
     lhs[0][1][m][m] = 1.0;
     lhs[i][1][m][m] = 1.0;
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (m = 0; m < 5; m++) {
     lhs[0][1][m][m] = 1.0;

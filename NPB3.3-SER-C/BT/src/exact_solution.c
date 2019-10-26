@@ -47,7 +47,7 @@ void exact_solution(double xi, double eta, double zeta, double dtemp[5])
 #endif
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(m, cit1, 0, 4, CIT_STEP1) {
+  FOR_START(m, cit1, 0, 4+1, 1, cit_step_add, RND) {
   /*for (m = 0; m < 5; m++) {*/
     dtemp[m] =  ce[m][0] +
       xi*(ce[m][1] + xi*(ce[m][4] + xi*(ce[m][7] + xi*ce[m][10]))) +
@@ -55,7 +55,7 @@ void exact_solution(double xi, double eta, double zeta, double dtemp[5])
       zeta*(ce[m][3] + zeta*(ce[m][6] + zeta*(ce[m][9] +
       zeta*ce[m][12])));
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (m = 0; m < 5; m++) {
     dtemp[m] =  ce[m][0] +

@@ -33,6 +33,9 @@
 
 #include "header.h"
 #include <math.h>
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
 // this function computes the norm of the difference between the
@@ -42,11 +45,47 @@ void error_norm(double rms[5])
 {
   int i, j, k, m, d;
   double xi, eta, zeta, u_exact[5], add;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    rms[m] = 0.0;
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     rms[m] = 0.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, grid_points[2]-1+1, 1, cit_step_add, RND) {
+  /*for (k = 0; k <= grid_points[2]-1; k++) {*/
+    zeta = (double)k * dnzm1;
+    FOR_START(j, cit2, 0, grid_points[1]-1+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j <= grid_points[1]-1; j++) {*/
+      eta = (double)j * dnym1;
+      FOR_START(i, cit3, 0, grid_points[0]-1+1, 1, cit_step_add, RND) {
+      /*for (i = 0; i <= grid_points[0]-1; i++) {*/
+        xi = (double)i * dnxm1;
+        exact_solution(xi, eta, zeta, u_exact);
+
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
+        /*for (m = 0; m < 5; m++) {*/
+          add = u[k][j][i][m]-u_exact[m];
+          rms[m] = rms[m] + add*add;
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)k * dnzm1;
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -62,13 +101,27 @@ void error_norm(double rms[5])
       }
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    FOR_START(d, cit2, 0, 3, 1, cit_step_add, RND) {
+    /*for (d = 0; d < 3; d++) {*/
+      rms[m] = rms[m] / (double)(grid_points[d]-2);
+    }
+    FOR_END(cit2);
+    rms[m] = sqrt(rms[m]);
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     for (d = 0; d < 3; d++) {
       rms[m] = rms[m] / (double)(grid_points[d]-2);
     }
     rms[m] = sqrt(rms[m]);
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -76,27 +129,72 @@ void rhs_norm(double rms[5])
 {
   int i, j, k, d, m;
   double add;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    rms[m] = 0.0;
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     rms[m] = 0.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 1, nz2+1, 1, cit_step_add, RND) {
+  /*for (k = 1; k <= nz2; k++) {*/
+    FOR_START(j, cit2, 1, ny2+1, 1, cit_step_add, RND) {
+    /*for (j = 1; j <= ny2; j++) {*/
+      FOR_START(i, cit3, 1, nx2+1, 1, cit_step_add, RND) {
+      /*for (i = 1; i <= nx2; i++) {*/
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
+        /*for (m = 0; m < 5; m++) {*/
+          add = rhs[k][j][i][m];
+          rms[m] = rms[m] + add*add;
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
         for (m = 0; m < 5; m++) {
           add = rhs[k][j][i][m];
           rms[m] = rms[m] + add*add;
-        } 
-      } 
-    } 
-  } 
+        }
+      }
+    }
+  }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    FOR_START(d, cit2, 0, 3, 1, cit_step_add, RND) {
+    /*for (d = 0; d < 3; d++) {*/
+      rms[m] = rms[m] / (double)(grid_points[d]-2);
+    }
+    FOR_END(cit2);
+    rms[m] = sqrt(rms[m]);
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     for (d = 0; d < 3; d++) {
       rms[m] = rms[m] / (double)(grid_points[d]-2);
     }
     rms[m] = sqrt(rms[m]);
   }
+#endif // USE_CITERATOR
 }
 

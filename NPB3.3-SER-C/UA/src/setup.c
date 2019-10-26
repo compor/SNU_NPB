@@ -33,49 +33,92 @@
 
 #include <math.h>
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 void create_initial_grid()
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   nelt = 1;
   ntot = nelt*LX1*LX1*LX1;
   tree[0] = 1;
   mt_to_id[0] = 0;
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, 7, 2, cit_step_add, RND) {
+  /*for (i = 0; i < 7; i += 2) {*/
+    xc[0][i] = 0.0;
+    xc[0][i+1] = 1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < 7; i += 2) {
     xc[0][i] = 0.0;
     xc[0][i+1] = 1.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, 2, 1, cit_step_add, RND) {
+  /*for (i = 0; i < 2; i++) {*/
+    yc[0][i] = 0.0;
+    yc[0][2+i] = 1.0;
+    yc[0][4+i] = 0.0;
+    yc[0][6+i] = 1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < 2; i++) {
     yc[0][i] = 0.0;
     yc[0][2+i] = 1.0;
     yc[0][4+i] = 0.0;
     yc[0][6+i] = 1.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, 4, 1, cit_step_add, RND) {
+  /*for (i = 0; i < 4; i++) {*/
+    zc[0][i] = 0.0;
+    zc[0][4+i] = 1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < 4; i++) {
     zc[0][i] = 0.0;
     zc[0][4+i] = 1.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, 6, 1, cit_step_add, RND) {
+  /*for (i = 0; i < 6; i++) {*/
+    cbc[0][i] = 0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < 6; i++) {
     cbc[0][i] = 0;
   }
+#endif // USE_CITERATOR
 }
 
 
 //-----------------------------------------------------------------
 //
-// generate 
+// generate
 //
 //        - collocation points
 //        - weights
-//        - derivative matrices 
+//        - derivative matrices
 //        - projection matrices
-//        - interpolation matrices 
+//        - interpolation matrices
 //
-// associated with the 
+// associated with the
 //
 //        - gauss-legendre lobatto mesh (suffix m1)
 //
@@ -83,9 +126,12 @@ void create_initial_grid()
 void coef()
 {
   int i, j, k;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   // for gauss-legendre lobatto mesh (suffix m1)
-  // generate collocation points and weights 
+  // generate collocation points and weights
   zgm1[0] = -1.0;
   zgm1[1] = -0.65465367070797710;
   zgm1[2] = 0.0;
@@ -97,6 +143,21 @@ void coef()
   wxm1[3] = wxm1[1];
   wxm1[4] = 0.1;
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (k = 0; k < LX1; k++) {*/
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        w3m1[k][j][i] = wxm1[i]*wxm1[j]*wxm1[k];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < LX1; k++) {
     for (j = 0; j < LX1; j++) {
       for (i = 0; i < LX1; i++) {
@@ -104,6 +165,7 @@ void coef()
       }
     }
   }
+#endif // USE_CITERATOR
 
   // generate derivative matrices
   dxm1[0][0] = -5.0;
@@ -121,16 +183,40 @@ void coef()
   dxm1[2][2] =  0.0;
   dxm1[2][3] = -dxm1[2][1];
   dxm1[2][4] = -dxm1[2][0];
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 3, LX1, 1, cit_step_add, RND) {
+  /*for (j = 3; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      dxm1[j][i] = -dxm1[LX1-1-j][LX1-1-i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 3; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       dxm1[j][i] = -dxm1[LX1-1-j][LX1-1-i];
     }
   }
+#endif // USE_CITERATOR
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      dxtm1[j][i] = dxm1[i][j];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       dxtm1[j][i] = dxm1[i][j];
     }
   }
+#endif // USE_CITERATOR
 
   // generate projection (mapping) matrices
   qbnew[0][0][0] = -0.1772843218615690;
@@ -149,11 +235,23 @@ void coef()
   qbnew[0][4][1] = 7.03125e-02;
   qbnew[0][4][2] = 0.0;
 
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, 3, 1, cit_step_add, RND) {
+    /*for (i = 0; i < 3; i++) {*/
+      qbnew[1][j][i] = qbnew[0][LX1-1-j][2-i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < 3; i++) {
       qbnew[1][j][i] = qbnew[0][LX1-1-j][2-i];
     }
-  } 
+  }
+#endif // USE_CITERATOR
 
   // generate interpolation matrices for mesh refinement
   ixtmc1[0][0] = 1.0;
@@ -181,23 +279,59 @@ void coef()
   ixtmc1[4][2] = 1.0;
   ixtmc1[4][3] = 0.0;
   ixtmc1[4][4] = 0.0;
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      ixmc1[j][i] = ixtmc1[i][j];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       ixmc1[j][i] = ixtmc1[i][j];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      ixtmc2[j][i] = ixtmc1[LX1-1-j][LX1-1-i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       ixtmc2[j][i] = ixtmc1[LX1-1-j][LX1-1-i];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1; i++) {*/
+      ixmc2[j][i] = ixtmc2[i][j];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 0; i < LX1; i++) {
       ixmc2[j][i] = ixtmc2[i][j];
     }
   }
+#endif // USE_CITERATOR
 
   // solution interpolation matrix for mesh coarsening
   map2[0] = -0.1179652785083428;
@@ -206,9 +340,17 @@ void coef()
   map2[3] = -0.1972224518285866;
   map2[4] =  6.222966087199998e-02;
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < LX1; i++) {*/
+    map4[i] = map2[LX1-1-i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < LX1; i++) {
     map4[i] = map2[LX1-1-i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -226,17 +368,58 @@ void coef()
 //     bm1      -   mass matrix
 //     xfrac    -   will be used in prepwork for calculating collocation
 //                      coordinates
-//     idel     -   collocation points index on element boundaries 
+//     idel     -   collocation points index on element boundaries
 //------------------------------------------------------------------
 void geom1()
 {
   double temp, temp1, temp2, dtemp;
   int isize, i, j, k, ntemp, iel;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < LX1; i++) {*/
+    xfrac[i] = zgm1[i]*0.5 + 0.5;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < LX1; i++) {
     xfrac[i] = zgm1[i]*0.5 + 0.5;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(isize, cit1, 0, REFINE_MAX, 1, cit_step_add, RND) {
+  /*for (isize = 0; isize < REFINE_MAX; isize++) {*/
+    temp = pow(2.0, (-isize-2));
+    dtemp = 1.0/temp;
+    temp1 = temp*temp*temp;
+    temp2 = temp*temp;
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          xrm1_s[isize][k][j][i] = dtemp;
+          jacm1_s[isize][k][j][i] = temp1;
+          rxm1_s[isize][k][j][i] = temp2;
+          g1m1_s[isize][k][j][i] = w3m1[k][j][i]*temp;
+          bm1_s[isize][k][j][i] = w3m1[k][j][i]*temp1;
+          g4m1_s[isize][k][j][i] = g1m1_s[isize][k][j][i]/wxm1[i];
+          g5m1_s[isize][k][j][i] = g1m1_s[isize][k][j][i]/wxm1[j];
+          g6m1_s[isize][k][j][i] = g1m1_s[isize][k][j][i]/wxm1[k];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (isize = 0; isize < REFINE_MAX; isize++) {
     temp = pow(2.0, (-isize-2));
     dtemp = 1.0/temp;
@@ -257,7 +440,29 @@ void geom1()
       }
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, LELT, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < LELT; iel++) {*/
+    ntemp = LX1*LX1*LX1*iel;
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        idel[iel][0][j][i] = ntemp+i*LX1 + j*LX1*LX1+LX1 - 1;
+        idel[iel][1][j][i] = ntemp+i*LX1 + j*LX1*LX1;
+        idel[iel][2][j][i] = ntemp+i*1 + j*LX1*LX1+LX1*(LX1-1);
+        idel[iel][3][j][i] = ntemp+i*1 + j*LX1*LX1;
+        idel[iel][4][j][i] = ntemp+i*1 + j*LX1+LX1*LX1*(LX1-1);
+        idel[iel][5][j][i] = ntemp+i*1 + j*LX1;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < LELT; iel++) {
     ntemp = LX1*LX1*LX1*iel;
     for (j = 0; j < LX1; j++) {
@@ -271,6 +476,7 @@ void geom1()
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -280,9 +486,27 @@ void geom1()
 void setdef()
 {
   int i, j, ip;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   r_init(wdtdr[0], LX1*LX1, 0.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < LX1; i++) {*/
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(ip, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (ip = 0; ip < LX1; ip++) {*/
+        wdtdr[j][i] = wdtdr[j][i] + wxm1[ip]*dxm1[i][ip]*dxm1[j][ip];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < LX1; i++) {
     for (j = 0; j < LX1; j++) {
       for (ip = 0; ip < LX1; ip++) {
@@ -290,38 +514,160 @@ void setdef()
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
 //------------------------------------------------------------------
 // mesh information preparations: calculate refinement levels of
-// each element, mask matrix for domain boundary and element 
+// each element, mask matrix for domain boundary and element
 // boundaries
 //------------------------------------------------------------------
 void prepwork()
 {
   int i, j, iel, iface, cb;
   double rdlog2;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   ntot = nelt*NXYZ;
   rdlog2 = 1.0/log(2.0);
 
   // calculate the refinement levels of each element
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    size_e[iel] = (int)(-log(xc[iel][1]-xc[iel][0])*rdlog2+1.e-8) - 1;
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     size_e[iel] = (int)(-log(xc[iel][1]-xc[iel][0])*rdlog2+1.e-8) - 1;
   }
+#endif // USE_CITERATOR
 
   // mask matrix for element boundary
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    r_init(tmult[iel][0][0], NXYZ, 1.0);
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+      facev(tmult[iel], iface, 0.0);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     r_init(tmult[iel][0][0], NXYZ, 1.0);
     for (iface = 0; iface < NSIDES; iface++) {
       facev(tmult[iel], iface, 0.0);
     }
   }
+#endif // USE_CITERATOR
 
-  // masks for domain boundary at mortar 
+  // masks for domain boundary at mortar
   r_init(tmmor, nmor, 1.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+      cb = cbc[iel][iface];
+      if (cb == 0) {
+        FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (j = 1; j < LX1-1; j++) {*/
+          FOR_START(i, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            tmmor[idmo[iel][iface][0][0][j][i]] = 0.0;
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        j = 0;
+        FOR_START(i, cit3, 0, LX1-1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1-1; i++) {*/
+          tmmor[idmo[iel][iface][0][0][j][i]] = 0.0;
+        }
+        FOR_END(cit3);
+
+        if (idmo[iel][iface][0][0][0][LX1-1] == -1) {
+          tmmor[idmo[iel][iface][1][0][0][LX1-1]] = 0.0;
+        } else {
+          tmmor[idmo[iel][iface][0][0][0][LX1-1]] = 0.0;
+          FOR_START(i, cit3, 0, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 0; i < LX1; i++) {*/
+            tmmor[idmo[iel][iface][1][0][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+        }
+
+        i = LX1-1;
+        if (idmo[iel][iface][1][0][1][LX1-1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            tmmor[idmo[iel][iface][0][0][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+          tmmor[idmo[iel][iface][1][1][LX1-1][LX1-1]] = 0.0;
+        } else {
+          FOR_START(j, cit3, 1, LX1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1; j++) {*/
+            tmmor[idmo[iel][iface][1][0][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+          FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+          /*for (j = 0; j < LX1; j++) {*/
+            tmmor[idmo[iel][iface][1][1][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+        }
+
+        j = LX1-1;
+        tmmor[idmo[iel][iface][0][1][LX1-1][0]] = 0.0;
+        if (idmo[iel][iface][0][1][LX1-1][1] == -1) {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            tmmor[idmo[iel][iface][0][0][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+        } else {
+          FOR_START(i, cit3, 1, LX1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1; i++) {*/
+            tmmor[idmo[iel][iface][0][1][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+          FOR_START(i, cit3, 0, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 0; i < LX1-1; i++) {*/
+            tmmor[idmo[iel][iface][1][1][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+        }
+
+        i = 0;
+        FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (j = 1; j < LX1-1; j++) {*/
+          tmmor[idmo[iel][iface][0][0][j][i]] = 0.0;
+        }
+        FOR_END(cit3);
+        if (idmo[iel][iface][0][0][LX1-1][0] != -1) {
+          tmmor[idmo[iel][iface][0][0][LX1-1][i]] = 0.0;
+          FOR_START(j, cit3, 0, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 0; j < LX1-1; j++) {*/
+            tmmor[idmo[iel][iface][0][1][j][i]] = 0.0;
+          }
+          FOR_END(cit3);
+        }
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     for (iface = 0; iface < NSIDES; iface++) {
       cb = cbc[iel][iface];
@@ -389,8 +735,9 @@ void prepwork()
       }
     }
   }
+#endif // USE_CITERATOR
 }
-            
+
 
 //------------------------------------------------------------------
 // We store some tables of useful topological constants
@@ -533,7 +880,7 @@ void top_constants()
   oplc[2] = 1;
   oplc[3] = 0;
 
-  // cal_iijj[n][i] returns the location of local corner number n on a face 
+  // cal_iijj[n][i] returns the location of local corner number n on a face
   // i =0  to get ii, i=1 to get jj
   // (ii,jj) is defined the same as in mortar location (ii,jj)
   cal_iijj[0][0] = 0;
@@ -546,8 +893,8 @@ void top_constants()
   cal_iijj[3][1] = 1;
 
   // returns the adjacent(neighbored by a face) element's children,
-  // assumming a vertex is shared by eight child elements 0-7. 
-  // index n is local corner number on the face which is being 
+  // assumming a vertex is shared by eight child elements 0-7.
+  // index n is local corner number on the face which is being
   // assigned the mortar index number
   cal_intempx[0][0] = 7;
   cal_intempx[0][1] = 5;
@@ -602,11 +949,11 @@ void top_constants()
 
   // on each face of the parent element, there are four children element.
   //le_arr[n][j][i] returns the i'th elements among the four children elements
-  // n refers to the direction: 1 for x, 2 for y and 3 for z direction. 
+  // n refers to the direction: 1 for x, 2 for y and 3 for z direction.
   // j refers to positive(0) or negative(1) direction on x, y or z direction.
   // n=1,j=0 refers to face 1 and n=1, j=1 refers to face 2, n=2,j=0 refers to
-  // face 3.... 
-  // The current eight children are ordered as 8,1,2,3,4,5,6,7 
+  // face 3....
+  // The current eight children are ordered as 8,1,2,3,4,5,6,7
   le_arr[0][0][0] = 7;
   le_arr[0][0][1] = 1;
   le_arr[0][0][2] = 3;
@@ -694,7 +1041,7 @@ void top_constants()
   e_face2[5][2] = 0;
   e_face2[5][3] = 0;
 
-  // op[n] returns the local edge number of the edge which 
+  // op[n] returns the local edge number of the edge which
   // is opposite to local edge n on the same face
   op[0] = 2;
   op[1] = 3;
@@ -802,7 +1149,7 @@ void top_constants()
   edgenumber[5][2] = 8;
   edgenumber[5][3] = 4;
 
-  // f_c[n][c] returns the face index of i'th face sharing vertex n 
+  // f_c[n][c] returns the face index of i'th face sharing vertex n
   f_c[0][0] = 1;
   f_c[0][1] = 3;
   f_c[0][2] = 5;
@@ -828,12 +1175,12 @@ void top_constants()
   f_c[7][1] = 2;
   f_c[7][2] = 4;
 
-  // if two elements are neighbor by one edge, 
-  // e1v1[f2][f1] returns the smaller index of the two vertices on this 
+  // if two elements are neighbor by one edge,
+  // e1v1[f2][f1] returns the smaller index of the two vertices on this
   // edge on one element
-  // e1v2 returns the larger index of the two vertices of this edge on 
-  // on element. exfor a vertex on element 
-  // e2v1 returns the smaller index of the two vertices on this edge on 
+  // e1v2 returns the larger index of the two vertices of this edge on
+  // on element. exfor a vertex on element
+  // e2v1 returns the smaller index of the two vertices on this edge on
   // another element
   // e2v2 returns the larger index of the two vertiex on this edge on
   // another element
@@ -989,7 +1336,7 @@ void top_constants()
   e2v2[5][4] = -1;
   e2v2[5][5] = -1;
 
-  // children[n][n1] returns the four elements among the eight children 
+  // children[n][n1] returns the four elements among the eight children
   // elements to be merged on face n of the parent element
   // the IDs for the eight children are 0,1,2,3,4,5,6,7
   children[0][0] = 1;
@@ -1033,7 +1380,7 @@ void top_constants()
   v_end[0] = 0;
   v_end[1] = LX1-1;
 
-  //face_l1,face_l2,face_ld return for start,end,stride for a loop over faces 
+  //face_l1,face_l2,face_ld return for start,end,stride for a loop over faces
   // used on subroutine  mortar_vertex
   face_l1[0] = 1;
   face_l1[1] = 2;

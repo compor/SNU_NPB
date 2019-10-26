@@ -39,11 +39,14 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define USE_CITERATOR
+
 #include "globals.h"
 #include "randdp.h"
 #include "timers.h"
 #include "print_results.h"
 
+#include "adt_citerator.h"
 
 static void setup(int *n1, int *n2, int *n3);
 static void mg3P(double u[], double v[], double r[],
@@ -72,7 +75,7 @@ static void zero3(void *oz, int n1, int n2, int n3);
 //-------------------------------------------------------------------------c
 // These arrays are in common because they are quite large
 // and probably shouldn't be allocated on the stack. They
-// are always passed as subroutine args. 
+// are always passed as subroutine args.
 //-------------------------------------------------------------------------c
 /* commcon /noautom/ */
 static double u[NR];
@@ -162,15 +165,15 @@ int main()
     Class = 'S';
   } else if ( nx[lt] == 128 && nit == 4 ) {
     Class = 'W';
-  } else if ( nx[lt] == 256 && nit == 4 ) {  
+  } else if ( nx[lt] == 256 && nit == 4 ) {
     Class = 'A';
   } else if ( nx[lt] == 256 && nit == 20 ) {
     Class = 'B';
-  } else if ( nx[lt] == 512 && nit == 20 ) {  
+  } else if ( nx[lt] == 512 && nit == 20 ) {
     Class = 'C';
-  } else if ( nx[lt] == 1024 && nit == 50 ) {  
+  } else if ( nx[lt] == 1024 && nit == 50 ) {
     Class = 'D';
-  } else if ( nx[lt] == 2048 && nit == 50 ) {  
+  } else if ( nx[lt] == 2048 && nit == 50 ) {
     Class = 'E';
   } else {
     Class = 'U';
@@ -193,7 +196,7 @@ int main()
   a[1] =  0.0;
   a[2] =  1.0/6.0;
   a[3] =  1.0/12.0;
-      
+
   if (Class == 'A' || Class == 'S' || Class =='W') {
     //---------------------------------------------------------------------
     // Coefficients for the S(a) smoother
@@ -325,9 +328,9 @@ int main()
     mflops = 0.0;
   }
 
-  print_results("MG", Class, nx[lt], ny[lt], nz[lt], 
+  print_results("MG", Class, nx[lt], ny[lt], nz[lt],
                 nit, t,
-                mflops, "          floating point", 
+                mflops, "          floating point",
                 verified, NPBVERSION, COMPILETIME,
                 CS1, CS2, CS3, CS4, CS5, CS6, CS7);
 
@@ -357,6 +360,9 @@ int main()
 static void setup(int *n1, int *n2, int *n3)
 {
   int k, j;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   int ax, mi[MAXLEVEL+1][3];
   int ng[MAXLEVEL+1][3];
@@ -364,17 +370,56 @@ static void setup(int *n1, int *n2, int *n3)
   ng[lt][0] = nx[lt];
   ng[lt][1] = ny[lt];
   ng[lt][2] = nz[lt];
+
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, lt-1, 0, -1, cit_step_add, FWD) {
+  /*for (k = lt-1; k >= 1; k--) {*/
+    FOR_START(ax, cit2, 0, 2+1, 1, cit_step_add, RND) {
+    /*for (ax = 0; ax < 3; ax++) {*/
+      ng[k][ax] = ng[k+1][ax]/2;
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = lt-1; k >= 1; k--) {
     for (ax = 0; ax < 3; ax++) {
       ng[k][ax] = ng[k+1][ax]/2;
     }
   }
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, lt, 0, -1, cit_step_add, RND) {
+  /*for (k = lt; k >= 1; k--) {*/
+    nx[k] = ng[k][0];
+    ny[k] = ng[k][1];
+    nz[k] = ng[k][2];
+  }
+  FOR_END(cit1);
+#else
   for (k = lt; k >= 1; k--) {
     nx[k] = ng[k][0];
     ny[k] = ng[k][1];
     nz[k] = ng[k][2];
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, lt, 0, -1, cit_step_add, RND) {
+  /*for (k = lt; k >= 1; k--) {*/
+    FOR_START(ax, cit2, 0, 2+1, 1, cit_step_add, RND) {
+    /*for (ax = 0; ax < 3; ax++) {*/
+      mi[k][ax] = 2 + ng[k][ax];
+    }
+    FOR_END(cit2);
+
+    m1[k] = mi[k][0];
+    m2[k] = mi[k][1];
+    m3[k] = mi[k][2];
+  }
+  FOR_END(cit1);
+#else
   for (k = lt; k >= 1; k--) {
     for (ax = 0; ax < 3; ax++) {
       mi[k][ax] = 2 + ng[k][ax];
@@ -384,6 +429,7 @@ static void setup(int *n1, int *n2, int *n3)
     m2[k] = mi[k][1];
     m3[k] = mi[k][2];
   }
+#endif // USE_CITERATOR
 
   k = lt;
   is1 = 2 + ng[k][0] - ng[lt][0];
@@ -397,14 +443,22 @@ static void setup(int *n1, int *n2, int *n3)
   *n3 = 3 + ie3 - is3;
 
   ir[lt] = 0;
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, lt-1, 0, -1, cit_step_add, FWD) {
+  /*for (j = lt-1; j >= 1; j--) {*/
+    ir[j] = ir[j+1]+ONE*m1[j+1]*m2[j+1]*m3[j+1];
+  }
+  FOR_END(cit1);
+#else
   for (j = lt-1; j >= 1; j--) {
     ir[j] = ir[j+1]+ONE*m1[j+1]*m2[j+1]*m3[j+1];
   }
+#endif // USE_CITERATOR
 
   if (debug_vec[1] >= 1) {
     printf(" in setup, \n");
     printf(" k  lt  nx  ny  nz  n1  n2  n3 is1 is2 is3 ie1 ie2 ie3\n");
-    printf("%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d\n", 
+    printf("%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d%4d\n",
         k,lt,ng[k][0],ng[k][1],ng[k][2],*n1,*n2,*n3,is1,is2,is3,ie1,ie2,ie3);
   }
 }
@@ -417,17 +471,30 @@ static void mg3P(double u[], double v[], double r[],
                  double a[4], double c[4], int n1, int n2, int n3)
 {
   int j, k;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // down cycle.
   // restrict the residual from the find grid to the coarse
   //---------------------------------------------------------------------
-  for (k = lt; k >= lb+1; k--) {
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, lt, lb+1-1, -1, cit_step_add, FWD) {
+  /*for (k = lt; k >= lb+1; k--) {*/
     j = k - 1;
-    rprj3(&r[ir[k]], m1[k], m2[k], m3[k], 
+    rprj3(&r[ir[k]], m1[k], m2[k], m3[k],
           &r[ir[j]], m1[j], m2[j], m3[j], k);
   }
-  
+  FOR_END(cit1);
+#else
+  for (k = lt; k >= lb+1; k--) {
+    j = k - 1;
+    rprj3(&r[ir[k]], m1[k], m2[k], m3[k],
+          &r[ir[j]], m1[j], m2[j], m3[j], k);
+  }
+#endif // USE_CITERATOR
+
   k = lb;
   //---------------------------------------------------------------------
   // compute an approximate solution on the coarsest grid
@@ -435,6 +502,29 @@ static void mg3P(double u[], double v[], double r[],
   zero3(&u[ir[k]], m1[k], m2[k], m3[k]);
   psinv(&r[ir[k]], &u[ir[k]], m1[k], m2[k], m3[k], c, k);
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, lb+1, lt-1+1, 1, cit_step_add, FWD) {
+  /*for (k = lb+1; k <= lt-1; k++) {*/
+    j = k - 1;
+
+    //---------------------------------------------------------------------
+    // prolongate from level k-1  to k
+    //---------------------------------------------------------------------
+    zero3(&u[ir[k]], m1[k], m2[k], m3[k]);
+    interp(&u[ir[j]], m1[j], m2[j], m3[j], &u[ir[k]], m1[k], m2[k], m3[k], k);
+
+    //---------------------------------------------------------------------
+    // compute residual for level k
+    //---------------------------------------------------------------------
+    resid(&u[ir[k]], &r[ir[k]], &r[ir[k]], m1[k], m2[k], m3[k], a, k);
+
+    //---------------------------------------------------------------------
+    // apply smoother
+    //---------------------------------------------------------------------
+    psinv(&r[ir[k]], &u[ir[k]], m1[k], m2[k], m3[k], c, k);
+  }
+  FOR_END(cit1);
+#else
   for (k = lb+1; k <= lt-1; k++) {
     j = k - 1;
 
@@ -454,6 +544,7 @@ static void mg3P(double u[], double v[], double r[],
     //---------------------------------------------------------------------
     psinv(&r[ir[k]], &u[ir[k]], m1[k], m2[k], m3[k], c, k);
   }
+#endif // USE_CITERATOR
 
   j = lt - 1;
   k = lt;
@@ -467,12 +558,12 @@ static void mg3P(double u[], double v[], double r[],
 // psinv applies an approximate inverse as smoother:  u = u + Cr
 //
 // This  implementation costs  15A + 4M per result, where
-// A and M denote the costs of Addition and Multiplication.  
+// A and M denote the costs of Addition and Multiplication.
 // Presuming coefficient c(3) is zero (the NPB assumes this,
 // but it is thus not a general case), 2A + 1M may be eliminated,
 // resulting in 13A + 3M.
-// Note that this vectorizes, and is also fine for cache 
-// based machines.  
+// Note that this vectorizes, and is also fine for cache
+// based machines.
 //---------------------------------------------------------------------
 static void psinv(void *or, void *ou, int n1, int n2, int n3,
                   double c[4], int k)
@@ -481,10 +572,45 @@ static void psinv(void *or, void *ou, int n1, int n2, int n3,
   double (*u)[n2][n1] = (double (*)[n2][n1])ou;
 
   int i3, i2, i1;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   double r1[M], r2[M];
 
   if (timeron) timer_start(T_psinv);
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i2, cit2, 1, n2-2+1, 1, cit_step_add, RND) {
+    /*for (i2 = 1; i2 < n2-1; i2++) {*/
+      FOR_START(i1, cit3, 0, n1-1+1, 1, cit_step_add, RND) {
+      /*for (i1 = 0; i1 < n1; i1++) {*/
+        r1[i1] = r[i3][i2-1][i1] + r[i3][i2+1][i1]
+               + r[i3-1][i2][i1] + r[i3+1][i2][i1];
+        r2[i1] = r[i3-1][i2-1][i1] + r[i3-1][i2+1][i1]
+               + r[i3+1][i2-1][i1] + r[i3+1][i2+1][i1];
+      }
+      FOR_END(cit3);
+      FOR_START(i1, cit3, 0, n1-1+1, 1, cit_step_add, RND) {
+      /*for (i1 = 1; i1 < n1-1; i1++) {*/
+        u[i3][i2][i1] = u[i3][i2][i1]
+                      + c[0] * r[i3][i2][i1]
+                      + c[1] * ( r[i3][i2][i1-1] + r[i3][i2][i1+1]
+                               + r1[i1] )
+                      + c[2] * ( r2[i1] + r1[i1-1] + r1[i1+1] );
+        //--------------------------------------------------------------------
+        // Assume c[3] = 0    (Enable line below if c[3] not= 0)
+        //--------------------------------------------------------------------
+        //            + c[3] * ( r2[i1-1] + r2[i1+1] )
+        //--------------------------------------------------------------------
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 0; i1 < n1; i1++) {
@@ -507,6 +633,7 @@ static void psinv(void *or, void *ou, int n1, int n2, int n3,
       }
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(T_psinv);
 
   //---------------------------------------------------------------------
@@ -528,13 +655,13 @@ static void psinv(void *or, void *ou, int n1, int n2, int n3,
 // resid computes the residual:  r = v - Au
 //
 // This  implementation costs  15A + 4M per result, where
-// A and M denote the costs of Addition (or Subtraction) and 
-// Multiplication, respectively. 
+// A and M denote the costs of Addition (or Subtraction) and
+// Multiplication, respectively.
 // Presuming coefficient a(1) is zero (the NPB assumes this,
 // but it is thus not a general case), 3A + 1M may be eliminated,
 // resulting in 12A + 3M.
-// Note that this vectorizes, and is also fine for cache 
-// based machines.  
+// Note that this vectorizes, and is also fine for cache
+// based machines.
 //---------------------------------------------------------------------
 static void resid(void *ou, void *ov, void *or, int n1, int n2, int n3,
                   double a[4], int k)
@@ -546,7 +673,43 @@ static void resid(void *ou, void *ov, void *or, int n1, int n2, int n3,
   int i3, i2, i1;
   double u1[M], u2[M];
 
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
+
   if (timeron) timer_start(T_resid);
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i2, cit2, 1, n2-2+1, 1, cit_step_add, RND) {
+    /*for (i2 = 1; i2 < n2-1; i2++) {*/
+      FOR_START(i1, cit3, 0, n1-1+1, 1, cit_step_add, RND) {
+      /*for (i1 = 0; i1 < n1; i1++) {*/
+        u1[i1] = u[i3][i2-1][i1] + u[i3][i2+1][i1]
+               + u[i3-1][i2][i1] + u[i3+1][i2][i1];
+        u2[i1] = u[i3-1][i2-1][i1] + u[i3-1][i2+1][i1]
+               + u[i3+1][i2-1][i1] + u[i3+1][i2+1][i1];
+      }
+      FOR_END(cit3);
+      FOR_START(i1, cit3, 1, n1-2+1, 1, cit_step_add, RND) {
+      /*for (i1 = 1; i1 < n1-1; i1++) {*/
+        r[i3][i2][i1] = v[i3][i2][i1]
+                      - a[0] * u[i3][i2][i1]
+        //-------------------------------------------------------------------
+        //  Assume a[1] = 0      (Enable 2 lines below if a[1] not= 0)
+        //-------------------------------------------------------------------
+        //            - a[1] * ( u[i3][i2][i1-1] + u[i3][i2][i1+1]
+        //                     + u1[i1] )
+        //-------------------------------------------------------------------
+                      - a[2] * ( u2[i1] + u1[i1-1] + u1[i1+1] )
+                      - a[3] * ( u2[i1-1] + u2[i1+1] );
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 0; i1 < n1; i1++) {
@@ -569,6 +732,7 @@ static void resid(void *ou, void *ov, void *or, int n1, int n2, int n3,
       }
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(T_resid);
 
   //---------------------------------------------------------------------
@@ -587,13 +751,13 @@ static void resid(void *ou, void *ov, void *or, int n1, int n2, int n3,
 
 
 //---------------------------------------------------------------------
-// rprj3 projects onto the next coarser grid, 
+// rprj3 projects onto the next coarser grid,
 // using a trilinear Finite Element projection:  s = r' = P r
-//     
+//
 // This  implementation costs  20A + 4M per result, where
-// A and M denote the costs of Addition and Multiplication.  
-// Note that this vectorizes, and is also fine for cache 
-// based machines.  
+// A and M denote the costs of Addition and Multiplication.
+// Note that this vectorizes, and is also fine for cache
+// based machines.
 //---------------------------------------------------------------------
 static void rprj3(void *or, int m1k, int m2k, int m3k,
                   void *os, int m1j, int m2j, int m3j, int k)
@@ -604,6 +768,10 @@ static void rprj3(void *or, int m1k, int m2k, int m3k,
   int j3, j2, j1, i3, i2, i1, d1, d2, d3, j;
 
   double x1[M], y1[M], x2, y2;
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(T_rprj3);
   if (m1k == 3) {
@@ -624,6 +792,43 @@ static void rprj3(void *or, int m1k, int m2k, int m3k,
     d3 = 1;
   }
 
+#ifdef USE_CITERATOR
+  FOR_START(j3, cit1, 1, m3j-2+1, 1, cit_step_add, RND) {
+  /*for (j3 = 1; j3 < m3j-1; j3++) {*/
+    i3 = 2*j3-d3;
+    FOR_START(j2, cit2, 1, m2j-2+1, 1, cit_step_add, RND) {
+    /*for (j2 = 1; j2 < m2j-1; j2++) {*/
+      i2 = 2*j2-d2;
+
+      FOR_START(j1, cit3, 1, m1j-1+1, 1, cit_step_add, RND) {
+      /*for (j1 = 1; j1 < m1j; j1++) {*/
+        i1 = 2*j1-d1;
+        x1[i1] = r[i3+1][i2  ][i1] + r[i3+1][i2+2][i1]
+               + r[i3  ][i2+1][i1] + r[i3+2][i2+1][i1];
+        y1[i1] = r[i3  ][i2  ][i1] + r[i3+2][i2  ][i1]
+               + r[i3  ][i2+2][i1] + r[i3+2][i2+2][i1];
+      }
+      FOR_END(cit3);
+
+      FOR_START(j1, cit3, 1, m1j-1+1, 1, cit_step_add, RND) {
+      /*for (j1 = 1; j1 < m1j-1; j1++) {*/
+        i1 = 2*j1-d1;
+        y2 = r[i3  ][i2  ][i1+1] + r[i3+2][i2  ][i1+1]
+           + r[i3  ][i2+2][i1+1] + r[i3+2][i2+2][i1+1];
+        x2 = r[i3+1][i2  ][i1+1] + r[i3+1][i2+2][i1+1]
+           + r[i3  ][i2+1][i1+1] + r[i3+2][i2+1][i1+1];
+        s[j3][j2][j1] =
+                0.5 * r[i3+1][i2+1][i1+1]
+              + 0.25 * (r[i3+1][i2+1][i1] + r[i3+1][i2+1][i1+2] + x2)
+              + 0.125 * (x1[i1] + x1[i1+2] + y2)
+              + 0.0625 * (y1[i1] + y1[i1+2]);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j3 = 1; j3 < m3j-1; j3++) {
     i3 = 2*j3-d3;
     for (j2 = 1; j2 < m2j-1; j2++) {
@@ -651,6 +856,7 @@ static void rprj3(void *or, int m1k, int m2k, int m3k,
       }
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(T_rprj3);
 
   j = k-1;
@@ -669,11 +875,11 @@ static void rprj3(void *or, int m1k, int m2k, int m3k,
 //---------------------------------------------------------------------
 // interp adds the trilinear interpolation of the correction
 // from the coarser grid to the current approximation:  u = u + Qu'
-//     
+//
 // Observe that this  implementation costs  16A + 4M, where
-// A and M denote the costs of Addition and Multiplication.  
-// Note that this vectorizes, and is also fine for cache 
-// based machines.  Vector machines may get slightly better 
+// A and M denote the costs of Addition and Multiplication.
+// Note that this vectorizes, and is also fine for cache
+// based machines.  Vector machines may get slightly better
 // performance however, with 8 separate "do i1" loops, rather than 4.
 //---------------------------------------------------------------------
 static void interp(void *oz, int mm1, int mm2, int mm3,
@@ -683,6 +889,9 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
   double (*u)[n2][n1] = (double (*)[n2][n1])ou;
 
   int i3, i2, i1, d1, d2, d3, t1, t2, t3;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   // note that m = 1037 in globals.h but for this only need to be
   // 535 to handle up to 1024^3
@@ -692,6 +901,56 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
 
   if (timeron) timer_start(T_interp);
   if (n1 != 3 && n2 != 3 && n3 != 3) {
+#ifdef USE_CITERATOR
+    FOR_START(i3, cit1, 0, mm3-2+1, 1, cit_step_add, RND) {
+    /*for (i3 = 0; i3 < mm3-1; i3++) {*/
+      FOR_START(i2, cit2, 0, mm2-2+1, 1, cit_step_add, RND) {
+      /*for (i2 = 0; i2 < mm2-1; i2++) {*/
+        FOR_START(i1, cit3, 0, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = 0; i1 < mm1; i1++) {*/
+          z1[i1] = z[i3][i2+1][i1] + z[i3][i2][i1];
+          z2[i1] = z[i3+1][i2][i1] + z[i3][i2][i1];
+          z3[i1] = z[i3+1][i2+1][i1] + z[i3+1][i2][i1] + z1[i1];
+        }
+        FOR_END(cit3);
+
+        FOR_START(i1, cit3, 0, mm1-2+1, 1, cit_step_add, RND) {
+        /*for (i1 = 0; i1 < mm1-1; i1++) {*/
+          u[2*i3][2*i2][2*i1] = u[2*i3][2*i2][2*i1]
+                              + z[i3][i2][i1];
+          u[2*i3][2*i2][2*i1+1] = u[2*i3][2*i2][2*i1+1]
+                                + 0.5 * (z[i3][i2][i1+1] + z[i3][i2][i1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 0, mm1-2+1, 1, cit_step_add, RND) {
+        /*for (i1 = 0; i1 < mm1-1; i1++) {*/
+          u[2*i3][2*i2+1][2*i1] = u[2*i3][2*i2+1][2*i1]
+                                + 0.5 * z1[i1];
+          u[2*i3][2*i2+1][2*i1+1] = u[2*i3][2*i2+1][2*i1+1]
+                                  + 0.25 * (z1[i1] + z1[i1+1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 0, mm1-2+1, 1, cit_step_add, RND) {
+        /*for (i1 = 0; i1 < mm1-1; i1++) {*/
+          u[2*i3+1][2*i2][2*i1] = u[2*i3+1][2*i2][2*i1]
+                                  + 0.5 * z2[i1];
+          u[2*i3+1][2*i2][2*i1+1] = u[2*i3+1][2*i2][2*i1+1]
+                                  + 0.25 * (z2[i1] + z2[i1+1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 0, mm1-2+1, 1, cit_step_add, RND) {
+        /*for (i1 = 0; i1 < mm1-1; i1++) {*/
+          u[2*i3+1][2*i2+1][2*i1] = u[2*i3+1][2*i2+1][2*i1]
+                                  + 0.25 * z3[i1];
+          u[2*i3+1][2*i2+1][2*i1+1] = u[2*i3+1][2*i2+1][2*i1+1]
+                                    + 0.125 * (z3[i1] + z3[i1+1]);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
     for (i3 = 0; i3 < mm3-1; i3++) {
       for (i2 = 0; i2 < mm2-1; i2++) {
         for (i1 = 0; i1 < mm1; i1++) {
@@ -726,6 +985,7 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
         }
       }
     }
+#endif // USE_CITERATOR
   } else {
     if (n1 == 3) {
       d1 = 2;
@@ -751,43 +1011,134 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
       t3 = 0;
     }
 
+#ifdef USE_CITERATOR
+    FOR_START(i3, cit1, d3, mm1-1+1, 1, cit_step_add, RND) {
+    /*for (i3 = d3; i3 <= mm3-1; i3++) {*/
+      FOR_START(i2, cit2, d2, mm2-1+1, 1, cit_step_add, RND) {
+      /*for (i2 = d2; i2 <= mm2-1; i2++) {*/
+        FOR_START(i1, cit3, d1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = d1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-d3-1][2*i2-d2-1][2*i1-d1-1] =
+            u[2*i3-d3-1][2*i2-d2-1][2*i1-d1-1]
+            + z[i3-1][i2-1][i1-1];
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = 1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-d3-1][2*i2-d2-1][2*i1-t1-1] =
+            u[2*i3-d3-1][2*i2-d2-1][2*i1-t1-1]
+            + 0.5 * (z[i3-1][i2-1][i1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+      FOR_START(i2, cit2, 1, mm2-1+1, 1, cit_step_add, RND) {
+      /*for (i2 = 1; i2 <= mm2-1; i2++) {*/
+        FOR_START(i1, cit3, d1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = d1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-d3-1][2*i2-t2-1][2*i1-d1-1] =
+            u[2*i3-d3-1][2*i2-t2-1][2*i1-d1-1]
+            + 0.5 * (z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = 1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-d3-1][2*i2-t2-1][2*i1-t1-1] =
+            u[2*i3-d3-1][2*i2-t2-1][2*i1-t1-1]
+            + 0.25 * (z[i3-1][i2][i1] + z[i3-1][i2-1][i1]
+                    + z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
     for (i3 = d3; i3 <= mm3-1; i3++) {
       for (i2 = d2; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
-          u[2*i3-d3-1][2*i2-d2-1][2*i1-d1-1] = 
+          u[2*i3-d3-1][2*i2-d2-1][2*i1-d1-1] =
             u[2*i3-d3-1][2*i2-d2-1][2*i1-d1-1]
             + z[i3-1][i2-1][i1-1];
         }
         for (i1 = 1; i1 <= mm1-1; i1++) {
-          u[2*i3-d3-1][2*i2-d2-1][2*i1-t1-1] = 
+          u[2*i3-d3-1][2*i2-d2-1][2*i1-t1-1] =
             u[2*i3-d3-1][2*i2-d2-1][2*i1-t1-1]
             + 0.5 * (z[i3-1][i2-1][i1] + z[i3-1][i2-1][i1-1]);
         }
       }
       for (i2 = 1; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
-          u[2*i3-d3-1][2*i2-t2-1][2*i1-d1-1] = 
+          u[2*i3-d3-1][2*i2-t2-1][2*i1-d1-1] =
             u[2*i3-d3-1][2*i2-t2-1][2*i1-d1-1]
             + 0.5 * (z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
         }
         for (i1 = 1; i1 <= mm1-1; i1++) {
-          u[2*i3-d3-1][2*i2-t2-1][2*i1-t1-1] = 
+          u[2*i3-d3-1][2*i2-t2-1][2*i1-t1-1] =
             u[2*i3-d3-1][2*i2-t2-1][2*i1-t1-1]
             + 0.25 * (z[i3-1][i2][i1] + z[i3-1][i2-1][i1]
                     + z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
         }
       }
     }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+    FOR_START(i3, cit1, 1, mm3-1+1, 1, cit_step_add, RND) {
+    /*for (i3 = 1; i3 <= mm3-1; i3++) {*/
+      FOR_START(i2, cit2, d2, mm2-1+1, 1, cit_step_add, RND) {
+      /*for (i2 = d2; i2 <= mm2-1; i2++) {*/
+        FOR_START(i1, cit3, d1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = d1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-t3-1][2*i2-d2-1][2*i1-d1-1] =
+            u[2*i3-t3-1][2*i2-d2-1][2*i1-d1-1]
+            + 0.5 * (z[i3][i2-1][i1-1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = 1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-t3-1][2*i2-d2-1][2*i1-t1-1] =
+            u[2*i3-t3-1][2*i2-d2-1][2*i1-t1-1]
+            + 0.25 * (z[i3  ][i2-1][i1] + z[i3  ][i2-1][i1-1]
+                    + z[i3-1][i2-1][i1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+      FOR_START(i2, cit2, 1, mm2-1+1, 1, cit_step_add, RND) {
+      /*for (i2 = 1; i2 <= mm2-1; i2++) {*/
+        FOR_START(i1, cit3, d1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = d1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-t3-1][2*i2-t2-1][2*i1-d1-1] =
+            u[2*i3-t3-1][2*i2-t2-1][2*i1-d1-1]
+            + 0.25 * (z[i3  ][i2][i1-1] + z[i3  ][i2-1][i1-1]
+                    + z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+        FOR_START(i1, cit3, 1, mm1-1+1, 1, cit_step_add, RND) {
+        /*for (i1 = 1; i1 <= mm1-1; i1++) {*/
+          u[2*i3-t3-1][2*i2-t2-1][2*i1-t1-1] =
+            u[2*i3-t3-1][2*i2-t2-1][2*i1-t1-1]
+            + 0.125 * (z[i3  ][i2][i1  ] + z[i3  ][i2-1][i1  ]
+                     + z[i3  ][i2][i1-1] + z[i3  ][i2-1][i1-1]
+                     + z[i3-1][i2][i1  ] + z[i3-1][i2-1][i1  ]
+                     + z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
     for (i3 = 1; i3 <= mm3-1; i3++) {
       for (i2 = d2; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
-          u[2*i3-t3-1][2*i2-d2-1][2*i1-d1-1] = 
+          u[2*i3-t3-1][2*i2-d2-1][2*i1-d1-1] =
             u[2*i3-t3-1][2*i2-d2-1][2*i1-d1-1]
             + 0.5 * (z[i3][i2-1][i1-1] + z[i3-1][i2-1][i1-1]);
         }
         for (i1 = 1; i1 <= mm1-1; i1++) {
-          u[2*i3-t3-1][2*i2-d2-1][2*i1-t1-1] = 
+          u[2*i3-t3-1][2*i2-d2-1][2*i1-t1-1] =
             u[2*i3-t3-1][2*i2-d2-1][2*i1-t1-1]
             + 0.25 * (z[i3  ][i2-1][i1] + z[i3  ][i2-1][i1-1]
                     + z[i3-1][i2-1][i1] + z[i3-1][i2-1][i1-1]);
@@ -795,13 +1146,13 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
       }
       for (i2 = 1; i2 <= mm2-1; i2++) {
         for (i1 = d1; i1 <= mm1-1; i1++) {
-          u[2*i3-t3-1][2*i2-t2-1][2*i1-d1-1] = 
+          u[2*i3-t3-1][2*i2-t2-1][2*i1-d1-1] =
             u[2*i3-t3-1][2*i2-t2-1][2*i1-d1-1]
             + 0.25 * (z[i3  ][i2][i1-1] + z[i3  ][i2-1][i1-1]
                     + z[i3-1][i2][i1-1] + z[i3-1][i2-1][i1-1]);
         }
         for (i1 = 1; i1 <= mm1-1; i1++) {
-          u[2*i3-t3-1][2*i2-t2-1][2*i1-t1-1] = 
+          u[2*i3-t3-1][2*i2-t2-1][2*i1-t1-1] =
             u[2*i3-t3-1][2*i2-t2-1][2*i1-t1-1]
             + 0.125 * (z[i3  ][i2][i1  ] + z[i3  ][i2-1][i1  ]
                      + z[i3  ][i2][i1-1] + z[i3  ][i2-1][i1-1]
@@ -810,7 +1161,7 @@ static void interp(void *oz, int mm1, int mm2, int mm3,
         }
       }
     }
-
+#endif // USE_CITERATOR
   }
   if (timeron) timer_stop(T_interp);
 
@@ -842,6 +1193,10 @@ static void norm2u3(void *or, int n1, int n2, int n3,
   double s, a;
   int i3, i2, i1;
 
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
+
   double dn;
 
   if (timeron) timer_start(T_norm2);
@@ -849,6 +1204,23 @@ static void norm2u3(void *or, int n1, int n2, int n3,
 
   s = 0.0;
   *rnmu = 0.0;
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i2, cit2, 1, n2-2+1, 1, cit_step_add, RND) {
+    /*for (i2 = 1; i2 < n2-1; i2++) {*/
+      FOR_START(i1, cit3, 1, n1-2+1, 1, cit_step_add, RND) {
+      /*for (i1 = 1; i1 < n1-1; i1++) {*/
+        s = s + pow(r[i3][i2][i1], 2.0);
+        a = fabs(r[i3][i2][i1]);
+        if (a > *rnmu) *rnmu = a;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 1; i1 < n1-1; i1++) {
@@ -858,6 +1230,7 @@ static void norm2u3(void *or, int n1, int n2, int n3,
       }
     }
   }
+#endif // USE_CITERATOR
 
   *rnm2 = sqrt(s / dn);
   if (timeron) timer_stop(T_norm2);
@@ -877,35 +1250,77 @@ static void rep_nrm(void *u, int n1, int n2, int n3, char *title, int kk)
 
 
 //---------------------------------------------------------------------
-// comm3 organizes the communication on all borders 
+// comm3 organizes the communication on all borders
 //---------------------------------------------------------------------
 static void comm3(void *ou, int n1, int n2, int n3, int kk)
 {
   double (*u)[n2][n1] = (double (*)[n2][n1])ou;
 
   int i1, i2, i3;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(T_comm3);
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i2, cit2, 1, n2-2+1, 1, cit_step_add, RND) {
+    /*for (i2 = 1; i2 < n2-1; i2++) {*/
+      u[i3][i2][   0] = u[i3][i2][n1-2];
+      u[i3][i2][n1-1] = u[i3][i2][   1];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       u[i3][i2][   0] = u[i3][i2][n1-2];
       u[i3][i2][n1-1] = u[i3][i2][   1];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i1, cit2, 0, n1-1+1, 1, cit_step_add, RND) {
+    /*for (i1 = 0; i1 < n1; i1++) {*/
+      u[i3][   0][i1] = u[i3][n2-2][i1];
+      u[i3][n2-1][i1] = u[i3][   1][i1];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i1 = 0; i1 < n1; i1++) {
       u[i3][   0][i1] = u[i3][n2-2][i1];
       u[i3][n2-1][i1] = u[i3][   1][i1];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i2, cit1, 0, n2-1+1, 1, cit_step_add, RND) {
+  /*for (i2 = 0; i2 < n2; i2++) {*/
+    FOR_START(i1, cit2, 0, n1-1+1, 1, cit_step_add, RND) {
+    /*for (i1 = 0; i1 < n1; i1++) {*/
+      u[   0][i2][i1] = u[n3-2][i2][i1];
+      u[n3-1][i2][i1] = u[   1][i2][i1];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i2 = 0; i2 < n2; i2++) {
     for (i1 = 0; i1 < n1; i1++) {
       u[   0][i2][i1] = u[n3-2][i2][i1];
       u[n3-1][i2][i1] = u[   1][i2][i1];
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(T_comm3);
 }
 
@@ -923,6 +1338,10 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
 
   int i1, i2, i3, d1, e1, e2, e3;
   double xx, x0, x1, a1, a2, ai;
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   const int mm = 10;
   const double a = pow(5.0, 13.0);
@@ -948,6 +1367,21 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
   x0 = x;
   rdummy = randlc(&x0, ai);
 
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, e3-1+1, 1, cit_step_add, FWD) {
+  /*for (i3 = 1; i3 < e3; i3++) {*/
+    x1 = x0;
+    FOR_START(i2, cit2, 1, e2-1+1, 1, cit_step_add, FWD) {
+    /*for (i2 = 1; i2 < e2; i2++) {*/
+      xx = x1;
+      vranlc(d1, &xx, a, &(z[i3][i2][1]));
+      rdummy = randlc(&x1,a1);
+    }
+    FOR_END(cit2);
+    rdummy = randlc(&x0, a2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < e3; i3++) {
     x1 = x0;
     for (i2 = 1; i2 < e2; i2++) {
@@ -957,6 +1391,7 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
     }
     rdummy = randlc(&x0, a2);
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // comm3(z,n1,n2,n3);
@@ -966,6 +1401,20 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
   //---------------------------------------------------------------------
   // each processor looks for twenty candidates
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, mm-1+1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < mm; i++) {*/
+    ten[i][1] = 0.0;
+    j1[i][1] = 0;
+    j2[i][1] = 0;
+    j3[i][1] = 0;
+    ten[i][0] = 1.0;
+    j1[i][0] = 0;
+    j2[i][0] = 0;
+    j3[i][0] = 0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < mm; i++) {
     ten[i][1] = 0.0;
     j1[i][1] = 0;
@@ -976,7 +1425,36 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
     j2[i][0] = 0;
     j3[i][0] = 0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 1, n3-2+1, 1, cit_step_add, RND) {
+  /*for (i3 = 1; i3 < n3-1; i3++) {*/
+    FOR_START(i2, cit2, 1, n2-2+1, 1, cit_step_add, RND) {
+    /*for (i2 = 1; i2 < n2-1; i2++) {*/
+      FOR_START(i1, cit3, 1, n1-2+1, 1, cit_step_add, RND) {
+      /*for (i1 = 1; i1 < n1-1; i1++) {*/
+        if (z[i3][i2][i1] > ten[0][1]) {
+          ten[0][1] = z[i3][i2][i1];
+          j1[0][1] = i1;
+          j2[0][1] = i2;
+          j3[0][1] = i3;
+          bubble(ten, j1, j2, j3, mm, 1);
+        }
+        if (z[i3][i2][i1] < ten[0][0]) {
+          ten[0][0] = z[i3][i2][i1];
+          j1[0][0] = i1;
+          j2[0][0] = i2;
+          j3[0][0] = i3;
+          bubble(ten, j1, j2, j3, mm, 0);
+        }
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 1; i1 < n1-1; i1++) {
@@ -997,13 +1475,47 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
       }
     }
   }
+#endif // USE_CITERATOR
 
 
   //---------------------------------------------------------------------
   // Now which of these are globally best?
   //---------------------------------------------------------------------
   i1 = mm - 1;
-  i0 = mm - 1; 
+  i0 = mm - 1;
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, mm-1, -1, -1, cit_step_add, RND) {
+  /*for (i = mm - 1; i >= 0; i--) {*/
+    best = 0.0;
+    if (best < ten[i1][1]) {
+      jg[0][i][1] = 0;
+      jg[1][i][1] = is1 - 2 + j1[i1][1];
+      jg[2][i][1] = is2 - 2 + j2[i1][1];
+      jg[3][i][1] = is3 - 2 + j3[i1][1];
+      i1 = i1-1;
+    } else {
+      jg[0][i][1] = 0;
+      jg[1][i][1] = 0;
+      jg[2][i][1] = 0;
+      jg[3][i][1] = 0;
+    }
+
+    best = 1.0;
+    if (best > ten[i0][0]) {
+      jg[0][i][0] = 0;
+      jg[1][i][0] = is1 - 2 + j1[i0][0];
+      jg[2][i][0] = is2 - 2 + j2[i0][0];
+      jg[3][i][0] = is3 - 2 + j3[i0][0];
+      i0 = i0-1;
+    } else {
+      jg[0][i][0] = 0;
+      jg[1][i][0] = 0;
+      jg[2][i][0] = 0;
+      jg[3][i][0] = 0;
+    }
+  }
+  FOR_END(cit1);
+#else
   for (i = mm - 1; i >= 0; i--) {
     best = 0.0;
     if (best < ten[i1][1]) {
@@ -1032,8 +1544,8 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
       jg[2][i][0] = 0;
       jg[3][i][0] = 0;
     }
-
   }
+#endif // USE_CITERATOR
   //  m1 = i1+1;
   //  m0 = i0+1;
   m1 = 0;
@@ -1084,6 +1596,21 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
   }
   */
 
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 0, n3-1+1, 1, cit_step_add, RND) {
+  /*for (i3 = 0; i3 < n3; i3++) {*/
+    FOR_START(i2, cit2, 0, n2-1+1, 1, cit_step_add, RND) {
+    /*for (i2 = 0; i2 < n2; i2++) {*/
+      FOR_START(i1, cit3, 0, n1-1+1, 1, cit_step_add, RND) {
+      /*for (i1 = 0; i1 < n1; i1++) {*/
+        z[i3][i2][i1] = 0.0;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 0; i3 < n3; i3++) {
     for (i2 = 0; i2 < n2; i2++) {
       for (i1 = 0; i1 < n1; i1++) {
@@ -1091,12 +1618,31 @@ static void zran3(void *oz, int n1, int n2, int n3, int nx, int ny, int k)
       }
     }
   }
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, mm-1, m0-1, -1, cit_step_add, RND) {
+  /*for (i = mm-1; i >= m0; i--) {*/
+    z[jg[3][i][0]][jg[2][i][0]][jg[1][i][0]] = -1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = mm-1; i >= m0; i--) {
     z[jg[3][i][0]][jg[2][i][0]][jg[1][i][0]] = -1.0;
   }
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, mm-1, m1-1, -1, cit_step_add, RND) {
+  /*for (i = mm-1; i >= m1; i--) {*/
+    z[jg[3][i][1]][jg[2][i][1]][jg[1][i][1]] = +1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = mm-1; i >= m1; i--) {
     z[jg[3][i][1]][jg[2][i][1]][jg[1][i][1]] = +1.0;
   }
+#endif // USE_CITERATOR
   comm3(z, n1, n2, n3, k);
 
   //---------------------------------------------------------------------
@@ -1163,8 +1709,36 @@ static void bubble(double ten[][2], int j1[][2], int j2[][2], int j3[][2],
 {
   double temp;
   int i, j_temp;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   if (ind == 1) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 0, m-2+1, 1, cit_step_add, FWD) {
+    /*for (i = 0; i < m-1; i++) {*/
+      if (ten[i][ind] > ten[i+1][ind]) {
+        temp = ten[i+1][ind];
+        ten[i+1][ind] = ten[i][ind];
+        ten[i][ind] = temp;
+
+        j_temp = j1[i+1][ind];
+        j1[i+1][ind] = j1[i][ind];
+        j1[i][ind] = j_temp;
+
+        j_temp = j2[i+1][ind];
+        j2[i+1][ind] = j2[i][ind];
+        j2[i][ind] = j_temp;
+
+        j_temp = j3[i+1][ind];
+        j3[i+1][ind] = j3[i][ind];
+        j3[i][ind] = j_temp;
+      } else {
+        return;
+      }
+    }
+    FOR_END(cit1);
+#else
     for (i = 0; i < m-1; i++) {
       if (ten[i][ind] > ten[i+1][ind]) {
         temp = ten[i+1][ind];
@@ -1186,7 +1760,34 @@ static void bubble(double ten[][2], int j1[][2], int j2[][2], int j3[][2],
         return;
       }
     }
+#endif // USE_CITERATOR
   } else {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 0, m-2+1, 1, cit_step_add, FWD) {
+    /*for (i = 0; i < m-1; i++) {*/
+      if (ten[i][ind] < ten[i+1][ind]) {
+
+        temp = ten[i+1][ind];
+        ten[i+1][ind] = ten[i][ind];
+        ten[i][ind] = temp;
+
+        j_temp = j1[i+1][ind];
+        j1[i+1][ind] = j1[i][ind];
+        j1[i][ind] = j_temp;
+
+        j_temp = j2[i+1][ind];
+        j2[i+1][ind] = j2[i][ind];
+        j2[i][ind] = j_temp;
+
+        j_temp = j3[i+1][ind];
+        j3[i+1][ind] = j3[i][ind];
+        j3[i][ind] = j_temp;
+      } else {
+        return;
+      }
+    }
+    FOR_END(cit1);
+#else
     for (i = 0; i < m-1; i++) {
       if (ten[i][ind] < ten[i+1][ind]) {
 
@@ -1209,6 +1810,7 @@ static void bubble(double ten[][2], int j1[][2], int j2[][2], int j3[][2],
         return;
       }
     }
+#endif // USE_CITERATOR
   }
 }
 
@@ -1218,7 +1820,25 @@ static void zero3(void *oz, int n1, int n2, int n3)
   double (*z)[n2][n1] = (double (*)[n2][n1])oz;
 
   int i1, i2, i3;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i3, cit1, 0, n3-1+1, 1, cit_step_add, RND) {
+  /*for (i3 = 0; i3 < n3; i3++) {*/
+    FOR_START(i2, cit2, 0, n2-1+1, 1, cit_step_add, RND) {
+    /*for (i2 = 0; i2 < n2; i2++) {*/
+      FOR_START(i1, cit3, 0, n1-1+1, 1, cit_step_add, RND) {
+      /*for (i1 = 0; i1 < n1; i1++) {*/
+        z[i3][i2][i1] = 0.0;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i3 = 0; i3 < n3; i3++) {
     for (i2 = 0; i2 < n2; i2++) {
       for (i1 = 0; i1 < n1; i1++) {
@@ -1226,5 +1846,6 @@ static void zero3(void *oz, int n1, int n2, int n3)
       }
     }
   }
+#endif // USE_CITERATOR
 }
 

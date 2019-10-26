@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //------------------------------------------------------------------
 // initialize double precision array a with length of n
@@ -39,10 +42,21 @@
 void reciprocal(double a[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = 1.0/a[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = 1.0/a[i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -52,10 +66,21 @@ void reciprocal(double a[], int n)
 void r_init(double a[], int n, double _const)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = _const;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = _const;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -65,10 +90,21 @@ void r_init(double a[], int n, double _const)
 void nr_init(int a[], int n, int _const)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = _const;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = _const;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -78,10 +114,21 @@ void nr_init(int a[], int n, int _const)
 void l_init(logical a[], int n, logical _const)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = _const;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = _const;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -91,10 +138,22 @@ void l_init(logical a[], int n, logical _const)
 void ncopy(int a[], int b[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = b[i];
   }
+#endif // USE_CITERATOR
+
 }
 
 
@@ -104,10 +163,21 @@ void ncopy(int a[], int b[], int n)
 void copy(double a[], double b[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = b[i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -117,9 +187,21 @@ void copy(double a[], double b[], int n)
 void adds2m1(double a[], double b[], double c1, int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = a[i]+c1*b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = a[i]+c1*b[i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -129,9 +211,21 @@ void adds2m1(double a[], double b[], double c1, int n)
 void adds1m1(double a[], double b[], double c1, int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = c1*a[i]+b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = c1*a[i]+b[i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -141,23 +235,45 @@ void adds1m1(double a[], double b[], double c1, int n)
 void col2(double a[], double b[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = a[i]*b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = a[i]*b[i];
   }
+#endif // USE_CITERATOR
 }
 
 
 //------------------------------------------------------------------
-// zero out array of integers 
+// zero out array of integers
 //------------------------------------------------------------------
 void nrzero(int na[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    na[i] = 0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     na[i] = 0;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -167,9 +283,21 @@ void nrzero(int na[], int n)
 void add2(double a[], double b[], int n)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    a[i] = a[i]+b[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     a[i] = a[i]+b[i];
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -180,9 +308,35 @@ double calc_norm()
 {
   double total, ieltotal;
   int iel, k, j, i, isize;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   total = 0.0;
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    ieltotal = 0.0;
+    isize = size_e[iel];
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          ieltotal = ieltotal+ta1[iel][k][j][i]*w3m1[k][j][i]
+                    *jacm1_s[isize][k][j][i];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    total = total+ieltotal;
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     ieltotal = 0.0;
     isize = size_e[iel];
@@ -196,6 +350,7 @@ double calc_norm()
     }
     total = total+ieltotal;
   }
+#endif // USE_CITERATOR
 
   return total;
 }
@@ -208,6 +363,9 @@ double calc_norm()
 void parallel_add(int frontier[])
 {
   int nellog, i, ahead, ii, ntemp, n1, ntemp1, n2, iel;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   if (nelt <= 1) return;
 
@@ -219,6 +377,40 @@ void parallel_add(int frontier[])
   } while (iel < nelt);
 
   ntemp = 1;
+#ifdef _USE_CITERATOR
+  FOR_START(i, cit1, 0, nellog, 1, cit_step_add, RND) {
+  /*for (i = 0; i < nellog; i++) {*/
+    /*fprintf(stderr, "lol\n");*/
+    n1 = ntemp*2;
+    n2 = n1;
+    FOR_START(iel, cit2, n1, nelt+1, n1, cit_step_add, RND) {
+    /*for (iel = n1; iel <= nelt; iel += n1) {*/
+      /*fprintf(stderr, "lal\n");*/
+      ahead = frontier[iel-ntemp-1];
+      FOR_START(ii, cit3, ntemp-1, -1, -1, cit_step_add, RND) {
+      /*for (ii = ntemp-1; ii >= 0; ii--) {*/
+        frontier[iel-ii-1] = frontier[iel-ii-1]+ahead;
+      }
+      FOR_END(cit3);
+      n2 = iel;
+    }
+    FOR_END(cit2);
+    if (n2 <= nelt) n2 = n2+n1;
+
+    ntemp1 = n2-nelt;
+    if (ntemp1 < ntemp) {
+      ahead = frontier[n2-ntemp-1];
+      FOR_START(ii, cit3, ntemp-1, ntemp1-1, -1, cit_step_add, RND) {
+      /*for (ii = ntemp-1; ii >= ntemp1; ii--) {*/
+        frontier[n2-ii-1] = frontier[n2-ii-1]+ahead;
+      }
+      FOR_END(cit3);
+    }
+
+    ntemp = n1;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < nellog; i++) {
     n1 = ntemp*2;
     n2 = n1;
@@ -241,6 +433,7 @@ void parallel_add(int frontier[])
 
     ntemp = n1;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -261,6 +454,9 @@ void dssum()
 void facev(double a[LX1][LX1][LX1], int iface, double val)
 {
   int kx1, kx2, ky1, ky2, kz1, kz2, ix, iy, iz;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   kx1 = 1;
   ky1 = 1;
@@ -275,6 +471,21 @@ void facev(double a[LX1][LX1][LX1], int iface, double val)
   if (iface == 4) kz1 = LX1;
   if (iface == 5) kz2 = 1;
 
+#ifdef USE_CITERATOR
+  FOR_START(ix, cit1, kx1-1, kx2, 1, cit_step_add, RND) {
+  /*for (ix = kx1-1; ix < kx2; ix++) {*/
+    FOR_START(iy, cit2, ky1-1, ky2, 1, cit_step_add, RND) {
+    /*for (iy = ky1-1; iy < ky2; iy++) {*/
+      FOR_START(iz, cit3, kz1-1, kz2, 1, cit_step_add, RND) {
+      /*for (iz = kz1-1; iz < kz2; iz++) {*/
+        a[iz][iy][ix] = val;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ix = kx1-1; ix < kx2; ix++) {
     for (iy = ky1-1; iy < ky2; iy++) {
       for (iz = kz1-1; iz < kz2; iz++) {
@@ -282,4 +493,5 @@ void facev(double a[LX1][LX1][LX1], int iface, double val)
       }
     }
   }
+#endif // USE_CITERATOR
 }

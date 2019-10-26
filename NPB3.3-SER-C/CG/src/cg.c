@@ -32,7 +32,7 @@
 //-------------------------------------------------------------------------//
 
 //---------------------------------------------------------------------
-// NPB CG serial version      
+// NPB CG serial version
 //---------------------------------------------------------------------
 
 #include <stdio.h>
@@ -44,6 +44,9 @@
 #include "timers.h"
 #include "print_results.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
 /* common / main_int_mem / */
@@ -125,6 +128,9 @@ static void vecset(int n, double v[], int iv[], int *nzv, int i, double val);
 int main(int argc, char *argv[])
 {
   int i, j, k, it;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   double zeta;
   double rnorm;
@@ -200,12 +206,12 @@ int main(int argc, char *argv[])
   zeta    = randlc(&tran, amult);
 
   //---------------------------------------------------------------------
-  //  
+  //
   //---------------------------------------------------------------------
-  makea(naa, nzz, a, colidx, rowstr, 
-        firstrow, lastrow, firstcol, lastcol, 
-        arow, 
-        (int (*)[NONZER+1])(void*)acol, 
+  makea(naa, nzz, a, colidx, rowstr,
+        firstrow, lastrow, firstcol, lastcol,
+        arow,
+        (int (*)[NONZER+1])(void*)acol,
         (double (*)[NONZER+1])(void*)aelt,
         iv);
 
@@ -214,27 +220,59 @@ int main(int argc, char *argv[])
   //      values of j used in indexing rowstr go from 0 --> lastrow-firstrow
   //      values of colidx which are col indexes go from firstcol --> lastcol
   //      So:
-  //      Shift the col index vals from actual (firstcol --> lastcol ) 
+  //      Shift the col index vals from actual (firstcol --> lastcol )
   //      to local, i.e., (0 --> lastcol-firstcol)
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, lastrow-firstrow+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < lastrow - firstrow + 1; j++) {*/
+    FOR_START(k, cit2, rowstr[j], rowstr[j+1]-1+1, 1, cit_step_add, RND) {
+    /*for (k = rowstr[j]; k < rowstr[j+1]; k++) {*/
+      colidx[k] = colidx[k] - firstcol;
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < lastrow - firstrow + 1; j++) {
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       colidx[k] = colidx[k] - firstcol;
     }
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // set starting vector to (1, 1, .... 1)
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, NA+1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < NA+1; i++) {*/
+    x[i] = 1.0;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < NA+1; i++) {
     x[i] = 1.0;
   }
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, lastcol-firstcol+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+    q[j] = 0.0;
+    z[j] = 0.0;
+    r[j] = 0.0;
+    p[j] = 0.0;
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < lastcol - firstcol + 1; j++) {
     q[j] = 0.0;
     z[j] = 0.0;
     r[j] = 0.0;
     p[j] = 0.0;
   }
+#endif // USE_CITERATOR
 
   zeta = 0.0;
 
@@ -267,7 +305,7 @@ int main(int argc, char *argv[])
     //---------------------------------------------------------------------
     // Normalize z to obtain x
     //---------------------------------------------------------------------
-    for (j = 0; j < lastcol - firstcol + 1; j++) {     
+    for (j = 0; j < lastcol - firstcol + 1; j++) {
       x[j] = norm_temp2 * z[j];
     }
   } // end of do one iteration untimed
@@ -293,6 +331,49 @@ int main(int argc, char *argv[])
   // Main Iteration for inverse power method
   //---->
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(it, cit1, 1, NITER+1, 1, cit_step_add, RND) {
+  /*for (it = 1; it <= NITER; it++) {*/
+    //---------------------------------------------------------------------
+    // The call to the conjugate gradient routine:
+    //---------------------------------------------------------------------
+    if (timeron) timer_start(T_conj_grad);
+    conj_grad(colidx, rowstr, x, z, a, p, q, r, &rnorm);
+    if (timeron) timer_stop(T_conj_grad);
+
+    //---------------------------------------------------------------------
+    // zeta = shift + 1/(x.z)
+    // So, first: (x.z)
+    // Also, find norm of z
+    // So, first: (z.z)
+    //---------------------------------------------------------------------
+    norm_temp1 = 0.0;
+    norm_temp2 = 0.0;
+    FOR_START(j, cit2, 0, lastcol-firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      norm_temp1 = norm_temp1 + x[j]*z[j];
+      norm_temp2 = norm_temp2 + z[j]*z[j];
+    }
+    FOR_END(cit2);
+
+    norm_temp2 = 1.0 / sqrt(norm_temp2);
+
+    zeta = SHIFT + 1.0 / norm_temp1;
+    if (it == 1)
+      printf("\n   iteration           ||r||                 zeta\n");
+    printf("    %5d       %20.14E%20.13f\n", it, rnorm, zeta);
+
+    //---------------------------------------------------------------------
+    // Normalize z to obtain x
+    //---------------------------------------------------------------------
+    FOR_START(j, cit2, 0, lastcol-firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      x[j] = norm_temp2 * z[j];
+    }
+    FOR_END(cit2);
+  } // end of main iter inv pow meth
+  FOR_END(cit1);
+#else
   for (it = 1; it <= NITER; it++) {
     //---------------------------------------------------------------------
     // The call to the conjugate gradient routine:
@@ -317,7 +398,7 @@ int main(int argc, char *argv[])
     norm_temp2 = 1.0 / sqrt(norm_temp2);
 
     zeta = SHIFT + 1.0 / norm_temp1;
-    if (it == 1) 
+    if (it == 1)
       printf("\n   iteration           ||r||                 zeta\n");
     printf("    %5d       %20.14E%20.13f\n", it, rnorm, zeta);
 
@@ -328,6 +409,7 @@ int main(int argc, char *argv[])
       x[j] = norm_temp2 * z[j];
     }
   } // end of main iter inv pow meth
+#endif // USE_CITERATOR
 
   timer_stop(T_bench);
 
@@ -370,7 +452,7 @@ int main(int argc, char *argv[])
 
   print_results("CG", Class, NA, 0, 0,
                 NITER, t,
-                mflops, "          floating point", 
+                mflops, "          floating point",
                 verified, NPBVERSION, COMPILETIME,
                 CS1, CS2, CS3, CS4, CS5, CS6, CS7);
 
@@ -400,7 +482,7 @@ int main(int argc, char *argv[])
 
 
 //---------------------------------------------------------------------
-// Floaging point arrays here are named as in NPB1 spec discussion of 
+// Floaging point arrays here are named as in NPB1 spec discussion of
 // CG algorithm
 //---------------------------------------------------------------------
 static void conj_grad(int colidx[],
@@ -417,41 +499,187 @@ static void conj_grad(int colidx[],
   int cgit, cgitmax = 25;
   double d, sum, rho, rho0, alpha, beta;
 
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
+
   rho = 0.0;
 
   //---------------------------------------------------------------------
   // Initialize the CG algorithm:
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, naa+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < naa+1; j++) {*/
+    q[j] = 0.0;
+    z[j] = 0.0;
+    r[j] = x[j];
+    p[j] = r[j];
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < naa+1; j++) {
     q[j] = 0.0;
     z[j] = 0.0;
     r[j] = x[j];
     p[j] = r[j];
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // rho = r.r
   // Now, obtain the norm of r: First, sum squares of r elements locally...
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+    rho = rho + r[j]*r[j];
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < lastcol - firstcol + 1; j++) {
     rho = rho + r[j]*r[j];
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   //---->
   // The conj grad iteration loop
   //---->
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(cgit, cit1, 1, cgitmax+1, 1, cit_step_add, RND) {
+  /*for (cgit = 1; cgit <= cgitmax; cgit++) {*/
+    //---------------------------------------------------------------------
+    // q = A.p
+    // The partition submatrix-vector multiply: use workspace w
+    //---------------------------------------------------------------------
+    //
+    // NOTE: this version of the multiply is actually (slightly: maybe %5)
+    //       faster on the sp2 on 16 nodes than is the unrolled-by-2 version
+    //       below.   On the Cray t3d, the reverse is true, i.e., the
+    //       unrolled-by-two version is some 10% faster.
+    //       The unrolled-by-8 version below is significantly faster
+    //       on the Cray t3d - overall speed of code is 1.5 times faster.
+
+    FOR_START(j, cit2, 0, lastrow - firstrow+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastrow - firstrow + 1; j++) {*/
+      sum = 0.0;
+      FOR_START(k, cit3, rowstr[j], rowstr[j+1] - 1+1, 1, cit_step_add, RND) {
+      /*for (k = rowstr[j]; k < rowstr[j+1]; k++) {*/
+        sum = sum + a[k]*p[colidx[k]];
+      }
+      FOR_END(cit3);
+      q[j] = sum;
+    }
+    FOR_END(cit2);
+
+    /*
+    for (j = 0; j < lastrow - firstrow + 1; j++) {
+      int i = rowstr[j];
+      int iresidue = (rowstr[j+1] - i) % 2;
+      double sum1 = 0.0;
+      double sum2 = 0.0;
+      if (iresidue == 1)
+        sum1 = sum1 + a[i]*p[colidx[i]];
+      for (k = i + iresidue; k <= rowstr[j+1] - 2; k += 2) {
+        sum1 = sum1 + a[k]  *p[colidx[k]];
+        sum2 = sum2 + a[k+1]*p[colidx[k+1]];
+      }
+      q[j] = sum1 + sum2;
+    }
+    */
+
+    /*
+    for (j = 0; j < lastrow - firstrow + 1; j++) {
+      int i = rowstr[j];
+      int iresidue = (rowstr[j+1] - i) % 8;
+      double sum = 0.0;
+      for (k = i; k <= i + iresidue - 1; k++) {
+        sum = sum + a[k]*p[colidx[k]];
+      }
+      for (k = i + iresidue; k <= rowstr[j+1] - 8; k += 8) {
+        sum = sum + a[k  ]*p[colidx[k  ]]
+                  + a[k+1]*p[colidx[k+1]]
+                  + a[k+2]*p[colidx[k+2]]
+                  + a[k+3]*p[colidx[k+3]]
+                  + a[k+4]*p[colidx[k+4]]
+                  + a[k+5]*p[colidx[k+5]]
+                  + a[k+6]*p[colidx[k+6]]
+                  + a[k+7]*p[colidx[k+7]];
+      }
+      q[j] = sum;
+    }
+    */
+
+    //---------------------------------------------------------------------
+    // Obtain p.q
+    //---------------------------------------------------------------------
+    d = 0.0;
+    FOR_START(j, cit2, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      d = d + p[j]*q[j];
+    }
+    FOR_END(cit2);
+
+    //---------------------------------------------------------------------
+    // Obtain alpha = rho / (p.q)
+    //---------------------------------------------------------------------
+    alpha = rho / d;
+
+    //---------------------------------------------------------------------
+    // Save a temporary of rho
+    //---------------------------------------------------------------------
+    rho0 = rho;
+
+    //---------------------------------------------------------------------
+    // Obtain z = z + alpha*p
+    // and    r = r - alpha*q
+    //---------------------------------------------------------------------
+    rho = 0.0;
+    FOR_START(j, cit2, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      z[j] = z[j] + alpha*p[j];
+      r[j] = r[j] - alpha*q[j];
+    }
+    FOR_END(cit2);
+
+    //---------------------------------------------------------------------
+    // rho = r.r
+    // Now, obtain the norm of r: First, sum squares of r elements locally...
+    //---------------------------------------------------------------------
+    FOR_START(j, cit2, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      rho = rho + r[j]*r[j];
+    }
+    FOR_END(cit2);
+
+    //---------------------------------------------------------------------
+    // Obtain beta:
+    //---------------------------------------------------------------------
+    beta = rho / rho0;
+
+    //---------------------------------------------------------------------
+    // p = r + beta*p
+    //---------------------------------------------------------------------
+    FOR_START(j, cit2, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < lastcol - firstcol + 1; j++) {*/
+      p[j] = r[j] + beta*p[j];
+    }
+    FOR_END(cit2);
+  } // end of do cgit=1,cgitmax
+  FOR_END(cit1);
+#else
   for (cgit = 1; cgit <= cgitmax; cgit++) {
     //---------------------------------------------------------------------
     // q = A.p
     // The partition submatrix-vector multiply: use workspace w
     //---------------------------------------------------------------------
     //
-    // NOTE: this version of the multiply is actually (slightly: maybe %5) 
-    //       faster on the sp2 on 16 nodes than is the unrolled-by-2 version 
-    //       below.   On the Cray t3d, the reverse is true, i.e., the 
-    //       unrolled-by-two version is some 10% faster.  
+    // NOTE: this version of the multiply is actually (slightly: maybe %5)
+    //       faster on the sp2 on 16 nodes than is the unrolled-by-2 version
+    //       below.   On the Cray t3d, the reverse is true, i.e., the
+    //       unrolled-by-two version is some 10% faster.
     //       The unrolled-by-8 version below is significantly faster
     //       on the Cray t3d - overall speed of code is 1.5 times faster.
 
@@ -481,7 +709,7 @@ static void conj_grad(int colidx[],
 
     /*
     for (j = 0; j < lastrow - firstrow + 1; j++) {
-      int i = rowstr[j]; 
+      int i = rowstr[j];
       int iresidue = (rowstr[j+1] - i) % 8;
       double sum = 0.0;
       for (k = i; k <= i + iresidue - 1; k++) {
@@ -528,7 +756,7 @@ static void conj_grad(int colidx[],
       z[j] = z[j] + alpha*p[j];
       r[j] = r[j] - alpha*q[j];
     }
-            
+
     //---------------------------------------------------------------------
     // rho = r.r
     // Now, obtain the norm of r: First, sum squares of r elements locally...
@@ -549,6 +777,7 @@ static void conj_grad(int colidx[],
       p[j] = r[j] + beta*p[j];
     }
   } // end of do cgit=1,cgitmax
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // Compute residual norm explicitly:  ||r|| = ||x - A.z||
@@ -556,6 +785,19 @@ static void conj_grad(int colidx[],
   // The partition submatrix-vector multiply
   //---------------------------------------------------------------------
   sum = 0.0;
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, lastrow - firstrow+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < lastrow - firstrow + 1; j++) {*/
+    d = 0.0;
+    FOR_START(k, cit2, rowstr[j], rowstr[j+1]-1+1, 1, cit_step_add, RND) {
+    /*for (k = rowstr[j]; k < rowstr[j+1]; k++) {*/
+      d = d + a[k]*z[colidx[k]];
+    }
+    FOR_END(cit2);
+    r[j] = d;
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < lastrow - firstrow + 1; j++) {
     d = 0.0;
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
@@ -563,14 +805,24 @@ static void conj_grad(int colidx[],
     }
     r[j] = d;
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // At this point, r contains A.z
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, lastcol - firstcol+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < lastcol-firstcol+1; j++) {*/
+    d   = x[j] - r[j];
+    sum = sum + d*d;
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < lastcol-firstcol+1; j++) {
     d   = x[j] - r[j];
     sum = sum + d*d;
   }
+#endif // USE_CITERATOR
 
   *rnorm = sqrt(sum);
 }
@@ -618,6 +870,9 @@ static void makea(int n,
   int iouter, ivelt, nzv, nn1;
   int ivc[NONZER+1];
   double vc[NONZER+1];
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // nonzer is approximately  (int(sqrt(nnza /n)));
@@ -634,23 +889,41 @@ static void makea(int n,
   //---------------------------------------------------------------------
   // Generate nonzero positions and save for the use in sparse.
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(iouter, cit1, 0, n-1+1, 1, cit_step_add, FWD) {
+  /*for (iouter = 0; iouter < n; iouter++) {*/
+    nzv = NONZER;
+    sprnvc(n, nzv, nn1, vc, ivc);
+    vecset(n, vc, ivc, &nzv, iouter+1, 0.5);
+    arow[iouter] = nzv;
+
+    FOR_START(ivelt, cit2, 0, nzv-1+1, 1, cit_step_add, RND) {
+    /*for (ivelt = 0; ivelt < nzv; ivelt++) {*/
+      acol[iouter][ivelt] = ivc[ivelt] - 1;
+      aelt[iouter][ivelt] = vc[ivelt];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iouter = 0; iouter < n; iouter++) {
     nzv = NONZER;
     sprnvc(n, nzv, nn1, vc, ivc);
     vecset(n, vc, ivc, &nzv, iouter+1, 0.5);
     arow[iouter] = nzv;
-    
+
     for (ivelt = 0; ivelt < nzv; ivelt++) {
       acol[iouter][ivelt] = ivc[ivelt] - 1;
       aelt[iouter][ivelt] = vc[ivelt];
     }
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // ... make the sparse matrix from list of elements with duplicates
   //     (iv is used as  workspace)
   //---------------------------------------------------------------------
-  sparse(a, colidx, rowstr, n, nz, NONZER, arow, acol, 
+  sparse(a, colidx, rowstr, n, nz, NONZER, arow, acol,
          aelt, firstrow, lastrow,
          iv, RCOND, SHIFT);
 }
@@ -676,6 +949,9 @@ static void sparse(double a[],
                    double shift)
 {
   int nrows;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   //---------------------------------------------------
   // generate a sparse matrix from a list of
@@ -693,16 +969,37 @@ static void sparse(double a[],
   //---------------------------------------------------------------------
   // ...count the number of triples in each row
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, nrows+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < nrows+1; j++) {*/
+    rowstr[j] = 0;
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < nrows+1; j++) {
     rowstr[j] = 0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n-1+1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < n; i++) {*/
+    FOR_START(nza, cit2, 0, arow[i]-1+1, 1, cit_step_add, RND) {
+    /*for (nza = 0; nza < arow[i]; nza++) {*/
+      j = acol[i][nza] + 1;
+      rowstr[j] = rowstr[j] + arow[i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     for (nza = 0; nza < arow[i]; nza++) {
       j = acol[i][nza] + 1;
       rowstr[j] = rowstr[j] + arow[i];
     }
   }
+#endif // USE_CITERATOR
 
   rowstr[0] = 0;
   for (j = 1; j < nrows+1; j++) {
@@ -723,6 +1020,19 @@ static void sparse(double a[],
   //---------------------------------------------------------------------
   // ... preload data pages
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, nrows-1+1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < nrows; j++) {*/
+    FOR_START(k, cit2, rowstr[j], rowstr[j+1]-1+1, 1, cit_step_add, RND) {
+    /*for (k = rowstr[j]; k < rowstr[j+1]; k++) {*/
+      a[k] = 0.0;
+      colidx[k] = -1;
+    }
+    FOR_END(cit2);
+    nzloc[j] = 0;
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < nrows; j++) {
     for (k = rowstr[j]; k < rowstr[j+1]; k++) {
       a[k] = 0.0;
@@ -730,6 +1040,7 @@ static void sparse(double a[],
     }
     nzloc[j] = 0;
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // ... generate actual values by summing duplicates
@@ -737,6 +1048,71 @@ static void sparse(double a[],
   size = 1.0;
   ratio = pow(rcond, (1.0 / (double)(n)));
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, n-1+1, 1, cit_step_add, FWD) {
+  /*for (i = 0; i < n; i++) {*/
+    FOR_START(nza, cit2, 0, arow[i]-1+1, 1, cit_step_add, RND) {
+    /*for (nza = 0; nza < arow[i]; nza++) {*/
+      j = acol[i][nza];
+
+      scale = size * aelt[i][nza];
+      FOR_START(nzrow, cit3, 0, arow[i]-1+1, 1, cit_step_add, RND) {
+      /*for (nzrow = 0; nzrow < arow[i]; nzrow++) {*/
+        jcol = acol[i][nzrow];
+        va = aelt[i][nzrow] * scale;
+
+        //--------------------------------------------------------------------
+        // ... add the identity * rcond to the generated matrix to bound
+        //     the smallest eigenvalue from below by rcond
+        //--------------------------------------------------------------------
+        if (jcol == j && j == i) {
+          va = va + rcond - shift;
+        }
+
+        cont40 = false;
+        FOR_START(k, cit4, rowstr[j], rowstr[j+1]-1+1, 1, cit_step_add, FWD) {
+        /*for (k = rowstr[j]; k < rowstr[j+1]; k++) {*/
+          if (colidx[k] > jcol) {
+            //----------------------------------------------------------------
+            // ... insert colidx here orderly
+            //----------------------------------------------------------------
+            for (kk = rowstr[j+1]-2; kk >= k; kk--) {
+              if (colidx[kk] > -1) {
+                a[kk+1]  = a[kk];
+                colidx[kk+1] = colidx[kk];
+              }
+            }
+            colidx[k] = jcol;
+            a[k]  = 0.0;
+            cont40 = true;
+            break;
+          } else if (colidx[k] == -1) {
+            colidx[k] = jcol;
+            cont40 = true;
+            break;
+          } else if (colidx[k] == jcol) {
+            //--------------------------------------------------------------
+            // ... mark the duplicated entry
+            //--------------------------------------------------------------
+            nzloc[j] = nzloc[j] + 1;
+            cont40 = true;
+            break;
+          }
+        }
+        FOR_END(cit4);
+        if (cont40 == false) {
+          printf("internal error in sparse: i=%d\n", i);
+          exit(EXIT_FAILURE);
+        }
+        a[k] = a[k] + va;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    size = size * ratio;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < n; i++) {
     for (nza = 0; nza < arow[i]; nza++) {
       j = acol[i][nza];
@@ -792,14 +1168,43 @@ static void sparse(double a[],
     }
     size = size * ratio;
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // ... remove empty entries and generate final results
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 1, nrows-1+1, 1, cit_step_add, FWD) {
+  /*for (j = 1; j < nrows; j++) {*/
+    nzloc[j] = nzloc[j] + nzloc[j-1];
+  }
+  FOR_END(cit1);
+#else
   for (j = 1; j < nrows; j++) {
     nzloc[j] = nzloc[j] + nzloc[j-1];
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, nrows-1+1, 1, cit_step_add, FWD) {
+  /*for (j = 0; j < nrows; j++) {*/
+    if (j > 0) {
+      j1 = rowstr[j] - nzloc[j-1];
+    } else {
+      j1 = 0;
+    }
+    j2 = rowstr[j+1] - nzloc[j];
+    nza = rowstr[j];
+    FOR_START(k, cit2, j1, j2-1+1, 1, cit_step_add, FWD) {
+    /*for (k = j1; k < j2; k++) {*/
+      a[k] = a[nza];
+      colidx[k] = colidx[nza];
+      nza = nza + 1;
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < nrows; j++) {
     if (j > 0) {
       j1 = rowstr[j] - nzloc[j-1];
@@ -814,9 +1219,19 @@ static void sparse(double a[],
       nza = nza + 1;
     }
   }
+#endif // USE_CITERATOR
+
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 1, nrows+1, 1, cit_step_add, RND) {
+  /*for (j = 1; j < nrows+1; j++) {*/
+    rowstr[j] = rowstr[j] - nzloc[j-1];
+  }
+  FOR_END(cit1);
+#else
   for (j = 1; j < nrows+1; j++) {
     rowstr[j] = rowstr[j] - nzloc[j-1];
   }
+#endif // USE_CITERATOR
   nza = rowstr[nrows] - 1;
 }
 
@@ -834,9 +1249,41 @@ static void sprnvc(int n, int nz, int nn1, double v[], int iv[])
 {
   int nzv, ii, i;
   double vecelt, vecloc;
+#ifdef USE_CITERATOR
+  /*struct cit_data *cit1, *cit2;*/
+#endif // USE_CITERATOR
 
   nzv = 0;
 
+#if 0
+  FOR_START(nzv, cit1, 0, nz-1+1, 1, cit_step_add, FWD) {
+  /*while (nzv < nz) {*/
+    vecelt = randlc(&tran, amult);
+
+    //---------------------------------------------------------------------
+    // generate an integer between 1 and n in a portable manner
+    //---------------------------------------------------------------------
+    vecloc = randlc(&tran, amult);
+    i = icnvrt(vecloc, nn1) + 1;
+    if (i > n) continue;
+
+    //---------------------------------------------------------------------
+    // was this integer generated already?
+    //---------------------------------------------------------------------
+    logical was_gen = false;
+    for (ii = 0; ii < nzv; ii++) {
+      if (iv[ii] == i) {
+        was_gen = true;
+        break;
+      }
+    }
+    if (was_gen) continue;
+    v[nzv] = vecelt;
+    iv[nzv] = i;
+    /*nzv = nzv + 1;*/
+  }
+  FOR_END(cit1);
+#else
   while (nzv < nz) {
     vecelt = randlc(&tran, amult);
 
@@ -862,6 +1309,7 @@ static void sprnvc(int n, int nz, int nn1, double v[], int iv[])
     iv[nzv] = i;
     nzv = nzv + 1;
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -881,15 +1329,29 @@ static int icnvrt(double x, int ipwr2)
 static void vecset(int n, double v[], int iv[], int *nzv, int i, double val)
 {
   int k;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
   logical set;
 
   set = false;
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, *nzv - 1+1, 1, cit_step_add, RND) {
+  /*for (k = 0; k < *nzv; k++) {*/
+    if (iv[k] == i) {
+      v[k] = val;
+      set  = true;
+    }
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < *nzv; k++) {
     if (iv[k] == i) {
       v[k] = val;
       set  = true;
     }
   }
+#endif // USE_CITERATOR
   if (set == false) {
     v[*nzv]  = val;
     iv[*nzv] = i;

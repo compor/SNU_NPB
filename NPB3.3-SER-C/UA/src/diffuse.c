@@ -34,6 +34,10 @@
 #include "header.h"
 #include "timers.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 //---------------------------------------------------------------------
 // advance the diffusion term using CG iterations
 //---------------------------------------------------------------------
@@ -41,6 +45,9 @@ void diffusion(logical ifmortar)
 {
   double rho_aux, rho1, rho2, beta, cona;
   int iter, ie, im, iside, i, j, k;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5;
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(t_diffusion);
   // set up diagonal preconditioner
@@ -60,6 +67,27 @@ void diffusion(logical ifmortar)
   // pdiff and pmorx are combined to generate q0 in the CG algorithm.
   // rho1 is  (qm,rm) in the CG algorithm.
   rho1 = 0.0;
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          pdiff[ie][k][j][i] = dpcelm[ie][k][j][i]*trhs[ie][k][j][i];
+          rho1               = rho1 + trhs[ie][k][j][i]*pdiff[ie][k][j][i]*
+                                      tmult[ie][k][j][i];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ie = 0; ie < nelt; ie++) {
     for (k = 0; k < LX1; k++) {
       for (j = 0; j < LX1; j++) {
@@ -71,15 +99,141 @@ void diffusion(logical ifmortar)
       }
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(im, cit1, 0, nmor, 1, cit_step_add, RND) {
+  /*for (im = 0; im < nmor; im++) {*/
+    pmorx[im] = dpcmor[im]*rmor[im];
+    rho1      = rho1 + rmor[im]*pmorx[im];
+  }
+  FOR_END(cit1);
+#else
   for (im = 0; im < nmor; im++) {
     pmorx[im] = dpcmor[im]*rmor[im];
     rho1      = rho1 + rmor[im]*pmorx[im];
   }
+#endif // USE_CITERATOR
 
   //.................................................................
   // commence conjugate gradient iteration
   //.................................................................
+#ifdef USE_CITERATOR
+  FOR_START(iter, cit1, 1, nmxh+1, 1, cit_step_add, FWD) {
+  /*for (iter = 1; iter <= nmxh; iter++) {*/
+    if (iter > 1) {
+      rho_aux = 0.0;
+      // pdiffp and ppmor are combined to generate q_m+1 in the specification
+      // rho_aux is (q_m+1,r_m+1)
+      FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+      /*for (ie = 0; ie < nelt; ie++) {*/
+        FOR_START(k, cit3, 0, LX1, 1, cit_step_add, RND) {
+        /*for (k = 0; k < LX1; k++) {*/
+          FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+          /*for (j = 0; j < LX1; j++) {*/
+            FOR_START(i, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (i = 0; i < LX1; i++) {*/
+              pdiffp[ie][k][j][i] = dpcelm[ie][k][j][i]*trhs[ie][k][j][i];
+              rho_aux = rho_aux+trhs[ie][k][j][i]*pdiffp[ie][k][j][i]*
+                                                  tmult[ie][k][j][i];
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+      }
+      FOR_END(cit2);
+
+      FOR_START(im, cit2, 0, nmor, 1, cit_step_add, RND) {
+      /*for (im = 0; im < nmor; im++) {*/
+        ppmor[im] = dpcmor[im]*rmor[im];
+        rho_aux = rho_aux + rmor[im]*ppmor[im];
+      }
+      FOR_END(cit2);
+
+      // compute bm (beta) in the specification
+      rho2 = rho1;
+      rho1 = rho_aux;
+      beta = rho1/rho2;
+
+      // update p_m+1 in the specification
+      adds1m1((double *)pdiff, (double *)pdiffp, beta, ntot);
+      adds1m1(pmorx, ppmor, beta, nmor);
+    }
+
+    // compute matrix vector product: (theta pm) in the specification
+    if (timeron) timer_start(t_transf);
+    transf(pmorx, (double *)pdiff);
+    if (timeron) timer_stop(t_transf);
+
+    // compute pdiffp which is (A theta pm) in the specification
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      laplacian(pdiffp[ie], pdiff[ie], size_e[ie]);
+    }
+    FOR_END(cit2);
+
+    // compute ppmor which will be used to compute (thetaT A theta pm)
+    // in the specification
+    if (timeron) timer_start(t_transfb);
+    transfb(ppmor, (double *)pdiffp);
+    if (timeron) timer_stop(t_transfb);
+
+    // apply boundary condition
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      FOR_START(iside, cit3, 0, NSIDES, 1, cit_step_add, RND) {
+      /*for (iside = 0; iside < NSIDES; iside++) {*/
+        if(cbc[ie][iside] == 0) {
+          facev(pdiffp[ie], iside, 0.0);
+        }
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+
+    // compute cona which is (pm,theta T A theta pm)
+    cona = 0.0;
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      FOR_START(k, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (k = 0; k < LX1; k++) {*/
+        FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (j = 0; j < LX1; j++) {*/
+          FOR_START(i, cit5, 0, LX1, 1, cit_step_add, RND) {
+          /*for (i = 0; i < LX1; i++) {*/
+            cona = cona + pdiff[ie][k][j][i]*
+                   pdiffp[ie][k][j][i]*tmult[ie][k][j][i];
+          }
+          FOR_END(cit5);
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+
+    FOR_START(im, cit2, 0, nmor, 1, cit_step_add, RND) {
+    /*for (im = 0; im < nmor; im++) {*/
+      ppmor[im] = ppmor[im]*tmmor[im];
+      cona = cona + pmorx[im]*ppmor[im];
+    }
+    FOR_END(cit2);
+
+    // compute am
+    cona = rho1/cona;
+
+    // compute (am pm)
+    adds2m1((double *)t, (double *)pdiff, cona, ntot);
+    adds2m1(umor, pmorx, cona, nmor);
+
+    // compute r_m+1
+    adds2m1((double *)trhs, (double *)pdiffp, -cona, ntot);
+    adds2m1(rmor, ppmor,  -cona, nmor);
+  }
+  FOR_END(cit1);
+#else
   for (iter = 1; iter <= nmxh; iter++) {
     if (iter > 1) {
       rho_aux = 0.0;
@@ -109,7 +263,7 @@ void diffusion(logical ifmortar)
 
       // update p_m+1 in the specification
       adds1m1((double *)pdiff, (double *)pdiffp, beta, ntot);
-      adds1m1(pmorx, ppmor, beta, nmor);  
+      adds1m1(pmorx, ppmor, beta, nmor);
     }
 
     // compute matrix vector product: (theta pm) in the specification
@@ -122,7 +276,7 @@ void diffusion(logical ifmortar)
       laplacian(pdiffp[ie], pdiff[ie], size_e[ie]);
     }
 
-    // compute ppmor which will be used to compute (thetaT A theta pm) 
+    // compute ppmor which will be used to compute (thetaT A theta pm)
     // in the specification
     if (timeron) timer_start(t_transfb);
     transfb(ppmor, (double *)pdiffp);
@@ -166,6 +320,7 @@ void diffusion(logical ifmortar)
     adds2m1((double *)trhs, (double *)pdiffp, -cona, ntot);
     adds2m1(rmor, ppmor,  -cona, nmor);
   }
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(t_transf);
   transf(umor, (double *)t);
@@ -177,16 +332,39 @@ void diffusion(logical ifmortar)
 //------------------------------------------------------------------
 // compute  r = visc*[A]x +[B]x on a given element.
 //------------------------------------------------------------------
+#undef USE_CITERATOR
 void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei)
 {
   double rdtime;
   int i, j, k, iz;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   double tm1[LX1][LX1][LX1], tm2[LX1][LX1][LX1];
 
   rdtime = 1.0/dtime;
 
   r_init((double *)tm1, NXYZ, 0.0);
+#ifdef USE_CITERATOR
+  FOR_START(iz, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (iz = 0; iz < LX1; iz++) {*/
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          tm1[iz][j][i] = tm1[iz][j][i]+wdtdr[k][i]*u[iz][j][k];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iz = 0; iz < LX1; iz++) {
     for (k = 0; k < LX1; k++) {
       for (j = 0; j < LX1; j++) {
@@ -194,10 +372,30 @@ void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei)
           tm1[iz][j][i] = tm1[iz][j][i]+wdtdr[k][i]*u[iz][j][k];
         }
       }
-    }                           
+    }
   }
+#endif // USE_CITERATOR
 
   r_init((double *)tm2, NXYZ, 0.0);
+#ifdef USE_CITERATOR
+  FOR_START(iz, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (iz = 0; iz < LX1; iz++) {*/
+    FOR_START(k, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (k = 0; k < LX1; k++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          tm2[iz][j][i] = tm2[iz][j][i]+u[iz][k][i]*wdtdr[j][k];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iz = 0; iz < LX1; iz++) {
     for (k = 0; k < LX1; k++) {
       for (j = 0; j < LX1; j++) {
@@ -207,8 +405,28 @@ void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei)
       }
     }
   }
+#endif // USE_CITERATOR
 
   r_init((double *)r, NXYZ, 0.0);
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (k = 0; k < LX1; k++) {*/
+    FOR_START(iz, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (iz = 0; iz < LX1; iz++) {*/
+      FOR_START(j, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (j = 0; j < LX1; j++) {*/
+        FOR_START(i, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (i = 0; i < LX1; i++) {*/
+          r[iz][j][i] = r[iz][j][i]+u[k][j][i]*wdtdr[iz][k];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < LX1; k++) {
     for (iz = 0; iz < LX1; iz++) {
       for (j = 0; j < LX1; j++) {
@@ -218,8 +436,27 @@ void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei)
       }
     }
   }
+#endif // USE_CITERATOR
 
   // collocate with remaining weights and sum to complete factorization.
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (k = 0; k < LX1; k++) {*/
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1; i++) {*/
+        r[k][j][i] = VISC*(tm1[k][j][i]*g4m1_s[sizei][k][j][i]+
+                           tm2[k][j][i]*g5m1_s[sizei][k][j][i]+
+                           r[k][j][i]*g6m1_s[sizei][k][j][i])+
+                     bm1_s[sizei][k][j][i]*rdtime*u[k][j][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < LX1; k++) {
     for (j = 0; j < LX1; j++) {
       for (i = 0; i < LX1; i++) {
@@ -230,4 +467,5 @@ void laplacian(double r[LX1][LX1][LX1], double u[LX1][LX1][LX1], int sizei)
       }
     }
   }
+#endif // USE_CITERATOR
 }

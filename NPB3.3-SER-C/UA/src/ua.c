@@ -40,6 +40,10 @@
 #include "timers.h"
 #include "print_results.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 
 /* common /usrdati/ */
 int fre, niter, nmxh;
@@ -77,13 +81,13 @@ double ppmor  [LMOR];
 
 // integer arrays associated with element faces
 /* common/facein/ */
-int idmo    [LELT][NSIDES][LNJE][LNJE][LX1][LX1]; 
-int idel    [LELT][NSIDES][LX1][LX1]; 
-int sje     [LELT][NSIDES][2][2]; 
+int idmo    [LELT][NSIDES][LNJE][LNJE][LX1][LX1];
+int idel    [LELT][NSIDES][LX1][LX1];
+int sje     [LELT][NSIDES][2][2];
 int sje_new [LELT][NSIDES][2][2];
-int ijel    [LELT][NSIDES][2]; 
+int ijel    [LELT][NSIDES][2];
 int ijel_new[LELT][NSIDES][2];
-int cbc     [LELT][NSIDES]; 
+int cbc     [LELT][NSIDES];
 int cbc_new [LELT][NSIDES];
 
 // integer array associated with vertices
@@ -120,7 +124,7 @@ logical ifpcmor[8*LELT];
 /* common /edgelg/ */
 logical eassign  [LELT][12];
 logical ncon_edge[LELT][12];
-logical if_1_edge[LELT][12]; 
+logical if_1_edge[LELT][12];
 
 // logical arrays associated with elements
 /* common /facelg/ */
@@ -197,11 +201,11 @@ double xfrac[LX1];
 
 // used in laplacian operator
 /* common /gmfact/ */
-double g1m1_s[REFINE_MAX][LX1][LX1][LX1]; 
+double g1m1_s[REFINE_MAX][LX1][LX1][LX1];
 double g4m1_s[REFINE_MAX][LX1][LX1][LX1];
 double g5m1_s[REFINE_MAX][LX1][LX1][LX1];
 double g6m1_s[REFINE_MAX][LX1][LX1][LX1];
-      
+
 // We store some tables of useful topological constants
 // These constants are intialized in a block data 'top_constants'
 /* common /top_consts/ */
@@ -245,6 +249,10 @@ int main(int argc, char *argv[])
 
   double t2, trecs[t_last+1];
   char *t_names[t_last+1];
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5;
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // Read input file (if it exists), else take
@@ -313,7 +321,7 @@ int main(int argc, char *argv[])
   r_init((double *)ta1, ntot, 0.0);
   nr_init((int *)sje, 4*6*nelt, -1);
 
-  // compute tables of coefficients and weights      
+  // compute tables of coefficients and weights
   coef();
   geom1();
 
@@ -333,6 +341,99 @@ int main(int argc, char *argv[])
   timer_clear(1);
 
   time = 0.0;
+#ifdef USE_CITERATOR
+  FOR_START(step, cit1, 0, niter+1, 1, cit_step_add, FWD) {
+  /*for (step = 0; step <= niter; step++) {*/
+    if (step == 1) {
+      // reset the solution and start the timer, keep track of total no elms
+      r_init((double *)ta1, ntot, 0.0);
+      time = 0.0;
+      nelt_tot = 0.0;
+      FOR_START(i, cit2, 1, t_last+1, 1, cit_step_add, RND) {
+      /*for (i = 1; i <= t_last; i++) {*/
+        if (i != t_init) timer_clear(i);
+      }
+      FOR_END(cit2);
+      timer_start(1);
+    }
+
+    // advance the convection step
+    convect(ifmortar);
+
+    if (timeron) timer_start(t_transf2);
+    // prepare the intital guess for cg
+    transf(tmort, (double *)ta1);
+
+    // compute residual for diffusion term based on intital guess
+
+    // compute the left hand side of equation, lapacian t
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      laplacian(ta2[ie], ta1[ie], size_e[ie]);
+    }
+    FOR_END(cit2);
+
+    // compute the residual
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      FOR_START(k, cit3, 0, LX1, 1, cit_step_add, RND) {
+      /*for (k = 0; k < LX1; k++) {*/
+        FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+        /*for (j = 0; j < LX1; j++) {*/
+          FOR_START(i, cit5, 0, LX1, 1, cit_step_add, RND) {
+          /*for (i = 0; i < LX1; i++) {*/
+            trhs[ie][k][j][i] = trhs[ie][k][j][i] - ta2[ie][k][j][i];
+          }
+          FOR_END(cit5);
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+
+    // get the residual on mortar
+    transfb(rmor, (double *)trhs);
+    if (timeron) timer_stop(t_transf2);
+
+    // apply boundary condition: zero out the residual on domain boundaries
+
+    // apply boundary conidtion to trhs
+    FOR_START(ie, cit2, 0, nelt, 1, cit_step_add, RND) {
+    /*for (ie = 0; ie < nelt; ie++) {*/
+      FOR_START(iside, cit3, 0, NSIDES, 1, cit_step_add, RND) {
+      /*for (iside = 0; iside < NSIDES; iside++) {*/
+        if (cbc[ie][iside] == 0) {
+          facev(trhs[ie], iside, 0.0);
+        }
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+    // apply boundary condition to rmor
+    col2(rmor, tmmor, nmor);
+
+    // call the conjugate gradient iterative solver
+    diffusion(ifmortar);
+
+    // add convection and diffusion
+    if (timeron) timer_start(t_add2);
+    add2((double *)ta1, (double *)t, ntot);
+    if (timeron) timer_stop(t_add2);
+
+    // perform mesh adaptation
+    time = time + dtime;
+    if ((step != 0) && (step/fre*fre == step)) {
+      if (step != niter) {
+        adaptation(&ifmortar, step);
+      }
+    } else {
+      ifmortar = false;
+    }
+    nelt_tot = nelt_tot + (double)(nelt);
+  }
+  FOR_END(cit1);
+#else
   for (step = 0; step <= niter; step++) {
     if (step == 1) {
       // reset the solution and start the timer, keep track of total no elms
@@ -345,7 +446,7 @@ int main(int argc, char *argv[])
       timer_start(1);
     }
 
-    // advance the convection step 
+    // advance the convection step
     convect(ifmortar);
 
     if (timeron) timer_start(t_transf2);
@@ -359,7 +460,7 @@ int main(int argc, char *argv[])
       laplacian(ta2[ie], ta1[ie], size_e[ie]);
     }
 
-    // compute the residual 
+    // compute the residual
     for (ie = 0; ie < nelt; ie++) {
       for (k = 0; k < LX1; k++) {
         for (j = 0; j < LX1; j++) {
@@ -370,7 +471,7 @@ int main(int argc, char *argv[])
       }
     }
 
-    // get the residual on mortar 
+    // get the residual on mortar
     transfb(rmor, (double *)trhs);
     if (timeron) timer_stop(t_transf2);
 
@@ -406,6 +507,7 @@ int main(int argc, char *argv[])
     }
     nelt_tot = nelt_tot + (double)(nelt);
   }
+#endif // USE_CITERATOR
 
   timer_stop(1);
   tmax = timer_read(1);
@@ -416,9 +518,9 @@ int main(int argc, char *argv[])
   // diffusion: nmxh advancements, convection: 1 advancement
   mflops = nelt_tot*(double)(LX1*LX1*LX1*(nmxh+1))/(tmax*1.e6);
 
-  print_results("UA", Class, REFINE_MAX, 0, 0, niter, 
-                tmax, mflops, "    coll. point advanced", 
-                verified, NPBVERSION, COMPILETIME, CS1, CS2, CS3, CS4, CS5, 
+  print_results("UA", Class, REFINE_MAX, 0, 0, niter,
+                tmax, mflops, "    coll. point advanced",
+                verified, NPBVERSION, COMPILETIME, CS1, CS2, CS3, CS4, CS5,
                 CS6, "(none)");
 
   //---------------------------------------------------------------------
@@ -436,11 +538,11 @@ int main(int argc, char *argv[])
           t_names[i], trecs[i], trecs[i]*100./tmax);
       if (i == t_transfb_c) {
         t2 = trecs[t_convect] - trecs[t_transfb_c];
-        printf("    --> %11s:%9.3f  (%6.2f%%)\n", 
+        printf("    --> %11s:%9.3f  (%6.2f%%)\n",
             "sub-convect", t2, t2*100./tmax);
       } else if (i == t_transfb) {
         t2 = trecs[t_diffusion] - trecs[t_transf] - trecs[t_transfb];
-        printf("    --> %11s:%9.3f  (%6.2f%%)\n", 
+        printf("    --> %11s:%9.3f  (%6.2f%%)\n",
             "sub-diffuse", t2, t2*100./tmax);
       }
     }

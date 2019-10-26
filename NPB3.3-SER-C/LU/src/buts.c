@@ -68,11 +68,11 @@ void buts(int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
   double tmat[5][5];
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(j, cit1, jend - 1, jst, cit_dec1) {
+  FOR_START(j, cit1, jend - 1, jst-1, -1, cit_step_add, RND) {
   /*for (j = jend - 1; j >= jst; j--) {*/
-    FOR_RND_START(i, cit2, iend - 1, ist, cit_dec1) {
+    FOR_START(i, cit2, iend - 1, ist-1, -1, cit_step_add, RND) {
     /*for (i = iend - 1; i >= ist; i--) {*/
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         tv[j][i][m] =
           omega * (  udz[j][i][0][m] * v[k+1][j][i][0]
@@ -81,11 +81,11 @@ void buts(int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
                    + udz[j][i][3][m] * v[k+1][j][i][3]
                    + udz[j][i][4][m] * v[k+1][j][i][4] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (j = jend - 1; j >= jst; j--) {
     for (i = iend - 1; i >= ist; i--) {
@@ -102,11 +102,11 @@ void buts(int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
 #endif // USE_CITERATOR
 
 #ifdef USE_CITERATOR
-  FOR_START(j, cit1, jend-1, jst, cit_dec1, FWD) {
+  FOR_START(j, cit1, jend-1, jst-1, -1, cit_step_add, FWD) {
   /*for (j = jend - 1; j >= jst; j--) {*/
-    FOR_START(i, cit2, iend-1, ist, cit_dec1, FWD) {
+    FOR_START(i, cit2, iend-1, ist-1, -1, cit_step_add, FWD) {
     /*for (i = iend - 1; i >= ist; i--) {*/
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         tv[j][i][m] = tv[j][i][m]
           + omega * ( udy[j][i][0][m] * v[k][j+1][i][0]
@@ -120,12 +120,12 @@ void buts(int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
                     + udy[j][i][4][m] * v[k][j+1][i][4]
                     + udx[j][i][4][m] * v[k][j][i+1][4] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // diagonal block inversion
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         tmat[m][0] = d[j][i][0][m];
         tmat[m][1] = d[j][i][1][m];
@@ -133,7 +133,7 @@ void buts(int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
         tmat[m][3] = d[j][i][3][m];
         tmat[m][4] = d[j][i][4][m];
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       tmp1 = 1.0 / tmat[0][0];
       tmp = tmp1 * tmat[1][0];

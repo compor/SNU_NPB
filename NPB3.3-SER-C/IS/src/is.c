@@ -1,13 +1,13 @@
 /*************************************************************************
- *                                                                       * 
+ *                                                                       *
  *       N  A  S     P A R A L L E L     B E N C H M A R K S  3.3        *
  *                                                                       *
- *                       S E R I A L    V E R S I O N                    * 
- *                                                                       * 
- *                                  I S                                  * 
- *                                                                       * 
- ************************************************************************* 
- *                                                                       * 
+ *                       S E R I A L    V E R S I O N                    *
+ *                                                                       *
+ *                                  I S                                  *
+ *                                                                       *
+ *************************************************************************
+ *                                                                       *
  *   This benchmark is a serial version of the NPB IS code.              *
  *   Refer to NAS Technical Reports 95-020 for details.                  *
  *                                                                       *
@@ -33,16 +33,20 @@
  *         E-mail:  npb@nas.nasa.gov                                     *
  *         Fax:     (650) 604-3957                                       *
  *                                                                       *
- ************************************************************************* 
- *                                                                       * 
- *   Author: M. Yarrow                                                   * 
- *           H. Jin                                                      * 
- *                                                                       * 
+ *************************************************************************
+ *                                                                       *
+ *   Author: M. Yarrow                                                   *
+ *           H. Jin                                                      *
+ *                                                                       *
  *************************************************************************/
 
 #include "npbparams.h"
 #include <stdlib.h>
 #include <stdio.h>
+
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 
 /*****************************************************************/
@@ -134,8 +138,8 @@
 #define  MAX_KEY             (1 << MAX_KEY_LOG_2)
 #define  NUM_BUCKETS         (1 << NUM_BUCKETS_LOG_2)
 #define  NUM_KEYS            TOTAL_KEYS
-#define  SIZE_OF_BUFFERS     NUM_KEYS  
-                                           
+#define  SIZE_OF_BUFFERS     NUM_KEYS
+
 
 #define  MAX_ITERATIONS      10
 #define  TEST_ARRAY_SIZE     5
@@ -160,19 +164,19 @@ INT_TYPE *key_buff_ptr_global;         /* used by full_verify to get */
                                        /* copies of rank info        */
 
 int      passed_verification;
-                                 
+
 
 /************************************/
 /* These are the three main arrays. */
 /* See SIZE_OF_BUFFERS def above    */
 /************************************/
-INT_TYPE key_array[SIZE_OF_BUFFERS],    
-         key_buff1[MAX_KEY],    
+INT_TYPE key_array[SIZE_OF_BUFFERS],
+         key_buff1[MAX_KEY],
          key_buff2[SIZE_OF_BUFFERS],
          partial_verify_vals[TEST_ARRAY_SIZE];
 
 #ifdef USE_BUCKETS
-INT_TYPE bucket_size[NUM_BUCKETS],                    
+INT_TYPE bucket_size[NUM_BUCKETS],
          bucket_ptrs[NUM_BUCKETS];
 #endif
 
@@ -183,34 +187,34 @@ INT_TYPE bucket_size[NUM_BUCKETS],
 INT_TYPE test_index_array[TEST_ARRAY_SIZE],
          test_rank_array[TEST_ARRAY_SIZE],
 
-         S_test_index_array[TEST_ARRAY_SIZE] = 
+         S_test_index_array[TEST_ARRAY_SIZE] =
                              {48427,17148,23627,62548,4431},
-         S_test_rank_array[TEST_ARRAY_SIZE] = 
+         S_test_rank_array[TEST_ARRAY_SIZE] =
                              {0,18,346,64917,65463},
 
-         W_test_index_array[TEST_ARRAY_SIZE] = 
+         W_test_index_array[TEST_ARRAY_SIZE] =
                              {357773,934767,875723,898999,404505},
-         W_test_rank_array[TEST_ARRAY_SIZE] = 
+         W_test_rank_array[TEST_ARRAY_SIZE] =
                              {1249,11698,1039987,1043896,1048018},
 
-         A_test_index_array[TEST_ARRAY_SIZE] = 
+         A_test_index_array[TEST_ARRAY_SIZE] =
                              {2112377,662041,5336171,3642833,4250760},
-         A_test_rank_array[TEST_ARRAY_SIZE] = 
+         A_test_rank_array[TEST_ARRAY_SIZE] =
                              {104,17523,123928,8288932,8388264},
 
-         B_test_index_array[TEST_ARRAY_SIZE] = 
+         B_test_index_array[TEST_ARRAY_SIZE] =
                              {41869,812306,5102857,18232239,26860214},
-         B_test_rank_array[TEST_ARRAY_SIZE] = 
-                             {33422937,10244,59149,33135281,99}, 
+         B_test_rank_array[TEST_ARRAY_SIZE] =
+                             {33422937,10244,59149,33135281,99},
 
-         C_test_index_array[TEST_ARRAY_SIZE] = 
+         C_test_index_array[TEST_ARRAY_SIZE] =
                              {44172927,72999161,74326391,129606274,21736814},
-         C_test_rank_array[TEST_ARRAY_SIZE] = 
+         C_test_rank_array[TEST_ARRAY_SIZE] =
                              {61147,882988,266290,133997595,133525895},
 
-         D_test_index_array[TEST_ARRAY_SIZE] = 
+         D_test_index_array[TEST_ARRAY_SIZE] =
                              {1317351170,995930646,1157283250,1503301535,1453734525},
-         D_test_rank_array[TEST_ARRAY_SIZE] = 
+         D_test_rank_array[TEST_ARRAY_SIZE] =
                              {1,36538729,1978098519,2145192618,2147425337};
 
 
@@ -224,7 +228,7 @@ void full_verify( void );
 
 void c_print_results( char   *name,
                       char   class,
-                      int    n1, 
+                      int    n1,
                       int    n2,
                       int    n3,
                       int    niter,
@@ -298,24 +302,45 @@ double	randlc( double *X, double *A )
       double		X2;
       double		Z;
       int     		i, j;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
-      if (KS == 0) 
+      if (KS == 0)
       {
         R23 = 1.0;
         R46 = 1.0;
         T23 = 1.0;
         T46 = 1.0;
-    
+
+#ifdef USE_CITERATOR
+        FOR_START(i, cit1, 1, 24, 1, cit_step_add, RND) {
+        /*for (i=1; i<=23; i++) {*/
+          R23 = 0.50 * R23;
+          T23 = 2.0 * T23;
+        }
+        FOR_END(cit1);
+#else
         for (i=1; i<=23; i++)
         {
           R23 = 0.50 * R23;
           T23 = 2.0 * T23;
         }
+#endif // USE_CITERATOR
+#ifdef USE_CITERATOR
+        FOR_START(i, cit1, 1, 47, 1, cit_step_add, RND) {
+        /*for (i=1; i<=46; i++) {*/
+          R46 = 0.50 * R46;
+          T46 = 2.0 * T46;
+        }
+        FOR_END(cit1);
+#else
         for (i=1; i<=46; i++)
         {
           R46 = 0.50 * R46;
           T46 = 2.0 * T46;
         }
+#endif // USE_CITERATOR
         KS = 1;
       }
 
@@ -335,7 +360,7 @@ double	randlc( double *X, double *A )
       X1 = j;
       X2 = *X - T23 * X1;
       T1 = A1 * X2 + A2 * X1;
-      
+
       j  = R23 * T1;
       T2 = j;
       Z = T1 - T23 * T2;
@@ -344,7 +369,7 @@ double	randlc( double *X, double *A )
       T4 = j;
       *X = T3 - T46 * T4;
       return(R46 * *X);
-} 
+}
 
 
 
@@ -357,18 +382,34 @@ void	create_seq( double seed, double a )
 {
 	double x;
 	INT_TYPE i, k;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
         k = MAX_KEY/4;
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, NUM_KEYS, 1, cit_step_add, FWD) {
+	/*for (i=0; i<NUM_KEYS; i++) {*/
+	    x = randlc(&seed, &a);
+	    x += randlc(&seed, &a);
+    	    x += randlc(&seed, &a);
+	    x += randlc(&seed, &a);
+
+            key_array[i] = k*x;
+	}
+	FOR_END(cit1);
+#else
 	for (i=0; i<NUM_KEYS; i++)
 	{
 	    x = randlc(&seed, &a);
 	    x += randlc(&seed, &a);
     	    x += randlc(&seed, &a);
-	    x += randlc(&seed, &a);  
+	    x += randlc(&seed, &a);
 
             key_array[i] = k*x;
 	}
+#endif // USE_CITERATOR
 }
 
 
@@ -384,7 +425,7 @@ void full_verify( void )
     INT_TYPE    i, j;
 
 
-    
+
 /*  Now, finally, sort the keys:  */
 
 #ifdef USE_BUCKETS
@@ -418,7 +459,7 @@ void full_verify( void )
     }
     else
         passed_verification++;
-           
+
 
 }
 
@@ -429,7 +470,7 @@ void full_verify( void )
 /*************             R  A  N  K             ****************/
 /*****************************************************************/
 
-
+#ifndef USE_CITERATOR
 void rank( int iteration )
 {
 
@@ -455,7 +496,7 @@ void rank( int iteration )
 #ifdef USE_BUCKETS
 
 /*  Initialize */
-    for( i=0; i<NUM_BUCKETS; i++ )  
+    for( i=0; i<NUM_BUCKETS; i++ )
         bucket_size[i] = 0;
 
 /*  Determine the number of keys in each bucket */
@@ -465,12 +506,12 @@ void rank( int iteration )
 
 /*  Accumulative bucket sizes are the bucket pointers */
     bucket_ptrs[0] = 0;
-    for( i=1; i< NUM_BUCKETS; i++ )  
+    for( i=1; i< NUM_BUCKETS; i++ )
         bucket_ptrs[i] = bucket_ptrs[i-1] + bucket_size[i-1];
 
 
 /*  Sort into appropriate bucket */
-    for( i=0; i<NUM_KEYS; i++ )  
+    for( i=0; i<NUM_KEYS; i++ )
     {
         key = key_array[i];
         key_buff2[bucket_ptrs[key >> shift]++] = key;
@@ -493,7 +534,7 @@ void rank( int iteration )
 
     key_buff_ptr = key_buff1;
 
-/*  In this section, the keys themselves are used as their 
+/*  In this section, the keys themselves are used as their
     own indexes to determine how many of each there are: their
     individual population                                       */
 
@@ -505,15 +546,15 @@ void rank( int iteration )
     population                                                  */
 
 
-    for( i=0; i<MAX_KEY-1; i++ )   
-        key_buff_ptr[i+1] += key_buff_ptr[i];  
+    for( i=0; i<MAX_KEY-1; i++ )
+        key_buff_ptr[i+1] += key_buff_ptr[i];
 
 
 /* This is the partial verify test section */
 /* Observe that test_rank_array vals are   */
 /* shifted differently for different cases */
     for( i=0; i<TEST_ARRAY_SIZE; i++ )
-    {                                             
+    {
         k = partial_verify_vals[i];          /* test vals were put here */
         if( 0 < k  &&  k <= NUM_KEYS-1 )
         {
@@ -621,7 +662,7 @@ void rank( int iteration )
             }
             if( failed == 1 )
                 printf( "Failed partial verification: "
-                        "iteration %d, test key %d\n", 
+                        "iteration %d, test key %d\n",
                          iteration, (int)i );
         }
     }
@@ -633,11 +674,244 @@ void rank( int iteration )
     in rank are local; making them global slows down the code, probably
     since they cannot be made register by compiler                        */
 
-    if( iteration == MAX_ITERATIONS ) 
+    if( iteration == MAX_ITERATIONS )
         key_buff_ptr_global = key_buff_ptr;
 
-}      
+}
+#else
+void rank( int iteration )
+{
 
+    INT_TYPE    i, k;
+
+    INT_TYPE    *key_buff_ptr, *key_buff_ptr2;
+
+#ifdef USE_BUCKETS
+    int shift = MAX_KEY_LOG_2 - NUM_BUCKETS_LOG_2;
+    INT_TYPE    key;
+#endif
+
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
+
+    key_array[iteration] = iteration;
+    key_array[iteration+MAX_ITERATIONS] = MAX_KEY - iteration;
+
+
+/*  Determine where the partial verify test keys are, load into  */
+/*  top of array bucket_size                                     */
+    FOR_START(i, cit1, 0, TEST_ARRAY_SIZE, 1, cit_step_add, RND) {
+    /*for( i=0; i<TEST_ARRAY_SIZE; i++ )*/
+        partial_verify_vals[i] = key_array[test_index_array[i]];
+    }
+    FOR_END(cit1);
+
+#ifdef USE_BUCKETS
+
+/*  Initialize */
+    FOR_START(i, cit1, 0, NUM_BUCKETS, 1, cit_step_add, RND) {
+    /*for( i=0; i<NUM_BUCKETS; i++ )*/
+        bucket_size[i] = 0;
+    }
+    FOR_END(cit1);
+
+/*  Determine the number of keys in each bucket */
+    FOR_START(i, cit1, 0, NUM_KEYS, 1, cit_step_add, RND) {
+    /*for( i=0; i<NUM_KEYS; i++ )*/
+        bucket_size[key_array[i] >> shift]++;
+    }
+    FOR_END(cit1);
+
+
+/*  Accumulative bucket sizes are the bucket pointers */
+    bucket_ptrs[0] = 0;
+    FOR_START(i, cit1, 1, NUM_BUCKETS, 1, cit_step_add, FWD) {
+    /*for( i=1; i< NUM_BUCKETS; i++ )*/
+        bucket_ptrs[i] = bucket_ptrs[i-1] + bucket_size[i-1];
+    }
+    FOR_END(cit1);
+
+
+/*  Sort into appropriate bucket */
+    FOR_START(i, cit1, 0, NUM_KEYS, 1, cit_step_add, RND) {
+    /*for( i=0; i<NUM_KEYS; i++ ) {*/
+        key = key_array[i];
+        key_buff2[bucket_ptrs[key >> shift]++] = key;
+    }
+    FOR_END(cit1);
+
+    key_buff_ptr2 = key_buff2;
+
+#else
+
+    key_buff_ptr2 = key_array;
+
+#endif
+
+/*  Clear the work array */
+    FOR_START(i, cit1, 0, MAX_KEY, 1, cit_step_add, RND) {
+    /*for( i=0; i<MAX_KEY; i++ ) {*/
+        key_buff1[i] = 0;
+    }
+    FOR_END(cit1);
+
+
+/*  Ranking of all keys occurs in this section:                 */
+
+    key_buff_ptr = key_buff1;
+
+/*  In this section, the keys themselves are used as their
+    own indexes to determine how many of each there are: their
+    individual population                                       */
+
+    FOR_START(i, cit1, 0, NUM_KEYS, 1, cit_step_add, RND) {
+    /*for( i=0; i<NUM_KEYS; i++ ) {*/
+        key_buff_ptr[key_buff_ptr2[i]]++;  /* Now they have individual key   */
+                                       /* population                     */
+    }
+    FOR_END(cit1);
+
+/*  To obtain ranks of each key, successively add the individual key
+    population                                                  */
+
+
+    FOR_START(i, cit1, 0, MAX_KEY-1, 1, cit_step_add, FWD) {
+    /*for( i=0; i<MAX_KEY-1; i++ ) {*/
+        key_buff_ptr[i+1] += key_buff_ptr[i];
+    }
+    FOR_END(cit1);
+
+/* This is the partial verify test section */
+/* Observe that test_rank_array vals are   */
+/* shifted differently for different cases */
+    FOR_START(i, cit1, 0, TEST_ARRAY_SIZE, 1, cit_step_add, RND) {
+    /*for( i=0; i<TEST_ARRAY_SIZE; i++ ) {*/
+        k = partial_verify_vals[i];          /* test vals were put here */
+        if( 0 < k  &&  k <= NUM_KEYS-1 )
+        {
+            INT_TYPE key_rank = key_buff_ptr[k-1];
+            int failed = 0;
+
+            switch( CLASS )
+            {
+                case 'S':
+                    if( i <= 2 )
+                    {
+                        if( key_rank != test_rank_array[i]+iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+                case 'W':
+                    if( i < 2 )
+                    {
+                        if( key_rank != test_rank_array[i]+(iteration-2) )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+                case 'A':
+                    if( i <= 2 )
+        	    {
+                        if( key_rank != test_rank_array[i]+(iteration-1) )
+                            failed = 1;
+                        else
+                            passed_verification++;
+        	    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-(iteration-1) )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+                case 'B':
+                    if( i == 1 || i == 2 || i == 4 )
+        	    {
+                        if( key_rank != test_rank_array[i]+iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+        	    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+                case 'C':
+                    if( i <= 2 )
+        	    {
+                        if( key_rank != test_rank_array[i]+iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+        	    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+                case 'D':
+                    if( i < 2 )
+        	    {
+                        if( key_rank != test_rank_array[i]+iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+        	    }
+                    else
+                    {
+                        if( key_rank != test_rank_array[i]-iteration )
+                            failed = 1;
+                        else
+                            passed_verification++;
+                    }
+                    break;
+            }
+            if( failed == 1 )
+                printf( "Failed partial verification: "
+                        "iteration %d, test key %d\n",
+                         iteration, (int)i );
+        }
+    }
+    FOR_END(cit1);
+
+
+
+
+/*  Make copies of rank info for use by full_verify: these variables
+    in rank are local; making them global slows down the code, probably
+    since they cannot be made register by compiler                        */
+
+    if( iteration == MAX_ITERATIONS )
+        key_buff_ptr_global = key_buff_ptr;
+
+}
+#endif // USE_CITERATOR
 
 /*****************************************************************/
 /*************             M  A  I  N             ****************/
@@ -654,7 +928,7 @@ int main( int argc, char **argv )
 
 
 /*  Initialize timers  */
-    timer_on = 0;            
+    timer_on = 0;
     if ((fp = fopen("timer.flag", "r")) != NULL) {
         fclose(fp);
         timer_on = 1;
@@ -699,7 +973,7 @@ int main( int argc, char **argv )
                 break;
         };
 
-        
+
 
 /*  Printout initial NPB info */
     printf
@@ -715,16 +989,16 @@ int main( int argc, char **argv )
     if (timer_on) timer_stop( 1 );
 
 
-/*  Do one interation for free (i.e., untimed) to guarantee initialization of  
+/*  Do one interation for free (i.e., untimed) to guarantee initialization of
     all data and code pages and respective tables */
-    rank( 1 );  
+    rank( 1 );
 
 /*  Start verification counter */
     passed_verification = 0;
 
     if( CLASS != 'S' ) printf( "\n   iteration\n" );
 
-/*  Start timer  */             
+/*  Start timer  */
     timer_start( 0 );
 
 
@@ -762,7 +1036,7 @@ int main( int argc, char **argv )
                      timecounter,
                      ((double) (MAX_ITERATIONS*TOTAL_KEYS))
                                                   /timecounter/1000000.,
-                     "keys ranked", 
+                     "keys ranked",
                      passed_verification,
                      NPBVERSION,
                      COMPILETIME,

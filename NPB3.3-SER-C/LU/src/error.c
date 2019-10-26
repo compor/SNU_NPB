@@ -34,11 +34,14 @@
 #include <stdio.h>
 #include <math.h>
 #include "applu.incl"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
-// 
+//
 // compute the solution error
-// 
+//
 //---------------------------------------------------------------------
 void error()
 {
@@ -48,11 +51,43 @@ void error()
   int i, j, k, m;
   double tmp;
   double u000ijk[5];
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    errnm[m] = 0.0;
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     errnm[m] = 0.0;
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 1, nz-1, 1, cit_step_add, RND) {
+  /*for (k = 1; k < nz-1; k++) {*/
+    FOR_START(j, cit2, jst, jend, 1, cit_step_add, RND) {
+    /*for (j = jst; j < jend; j++) {*/
+      FOR_START(i, cit3, ist, iend, 1, cit_step_add, RND) {
+      /*for (i = ist; i < iend; i++) {*/
+        exact( i, j, k, u000ijk );
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
+        /*for (m = 0; m < 5; m++) {*/
+          tmp = ( u000ijk[m] - u[k][j][i][m] );
+          errnm[m] = errnm[m] + tmp * tmp;
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 1; k < nz-1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = ist; i < iend; i++) {
@@ -64,10 +99,19 @@ void error()
       }
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(m, cit1, 0, 5, 1, cit_step_add, RND) {
+  /*for (m = 0; m < 5; m++) {*/
+    errnm[m] = sqrt ( errnm[m] / ( (nx0-2)*(ny0-2)*(nz0-2) ) );
+  }
+  FOR_END(cit1);
+#else
   for (m = 0; m < 5; m++) {
     errnm[m] = sqrt ( errnm[m] / ( (nx0-2)*(ny0-2)*(nz0-2) ) );
   }
+#endif // USE_CITERATOR
 
   /*
   printf(" \n RMS-norm of error in soln. to first pde  = %12.5E\n"

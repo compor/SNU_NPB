@@ -62,17 +62,17 @@ void rhs()
 
   if (timeron) timer_start(t_rhs);
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 0, nz - 1, CIT_STEP1) {
+  FOR_START(k, cit1, 0, nz, 1, cit_step_add, RND) {
   /*for (k = 0; k < nz; k++) {*/
-    FOR_RND_START(j, cit2, 0, ny - 1, CIT_STEP1) {
+    FOR_START(j, cit2, 0, ny, 1, cit_step_add, RND) {
     /*for (j = 0; j < ny; j++) {*/
-      FOR_RND_START(i, cit3, 0, nx - 1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, nx, 1, cit_step_add, RND) {
       /*for (i = 0; i < nx; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] = - frct[k][j][i][m];
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
         tmp = 1.0 / u[k][j][i][0];
         rho_i[k][j][i] = tmp;
         qs[k][j][i] = 0.50 * (  u[k][j][i][1] * u[k][j][i][1]
@@ -80,11 +80,11 @@ void rhs()
                               + u[k][j][i][3] * u[k][j][i][3] )
                            * tmp;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 0; k < nz; k++) {
     for (j = 0; j < ny; j++) {
@@ -108,11 +108,11 @@ void rhs()
   // xi-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, nz - 1 - 1, CIT_STEP1) {
+  FOR_START(k, cit1, 1, nz - 1, 1, cit_step_add, RND) {
   /*for (k = 1; k < nz - 1; k++) {*/
-    FOR_RND_START(j, cit2, jst, jend - 1, CIT_STEP1) {
+    FOR_START(j, cit2, jst, jend, 1, cit_step_add, RND) {
     /*for (j = jst; j < jend; j++) {*/
-      FOR_RND_START(i, cit3, 0, nx - 1, CIT_STEP1) {
+      FOR_START(i, cit3, 0, nx, 1, cit_step_add, RND) {
       /*for (i = 0; i < nx; i++) {*/
         flux[i][0] = u[k][j][i][1];
         u21 = u[k][j][i][1] * rho_i[k][j][i];
@@ -124,20 +124,20 @@ void rhs()
         flux[i][3] = u[k][j][i][3] * u21;
         flux[i][4] = ( C1 * u[k][j][i][4] - C2 * q ) * u21;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, ist, iend - 1, CIT_STEP1) {
+      FOR_START(i, cit3, ist, iend, 1, cit_step_add, RND) {
       /*for (i = ist; i < iend; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] =  rsd[k][j][i][m]
             - tx2 * ( flux[i+1][m] - flux[i-1][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, ist, nx - 1, CIT_STEP1) {
+      FOR_START(i, cit3, ist, nx, 1, cit_step_add, RND) {
       /*for (i = ist; i < nx; i++) {*/
         tmp = rho_i[k][j][i];
 
@@ -163,9 +163,9 @@ void rhs()
           * tx3 * ( u21i*u21i - u21im1*u21im1 )
           + C1 * C5 * tx3 * ( u51i - u51im1 );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, ist, iend - 1, CIT_STEP1) {
+      FOR_START(i, cit3, ist, iend, 1, cit_step_add, RND) {
       /*for (i = ist; i < iend; i++) {*/
         rsd[k][j][i][0] = rsd[k][j][i][0]
           + dx1 * tx1 * (        u[k][j][i-1][0]
@@ -192,12 +192,12 @@ void rhs()
                          - 2.0 * u[k][j][i][4]
                          +       u[k][j][i+1][4] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // Fourth-order dissipation
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[k][j][1][m] = rsd[k][j][1][m]
           - dssp * ( + 5.0 * u[k][j][1][m]
@@ -209,11 +209,11 @@ void rhs()
                      - 4.0 * u[k][j][3][m]
                      +       u[k][j][4][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(i, cit3, 3, nx - 3 - 1, CIT_STEP1) {
+      FOR_START(i, cit3, 3, nx - 3, 1, cit_step_add, RND) {
       /*for (i = 3; i < nx - 3; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] = rsd[k][j][i][m]
             - dssp * (         u[k][j][i-2][m]
@@ -222,12 +222,12 @@ void rhs()
                        - 4.0 * u[k][j][i+1][m]
                        +       u[k][j][i+2][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
 
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[k][j][nx-3][m] = rsd[k][j][nx-3][m]
           - dssp * (         u[k][j][nx-5][m]
@@ -239,11 +239,11 @@ void rhs()
                      - 4.0 * u[k][j][nx-3][m]
                      + 5.0 * u[k][j][nx-2][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k < nz - 1; k++) {
     for (j = jst; j < jend; j++) {
@@ -368,11 +368,11 @@ void rhs()
   // eta-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, nz-1-1, CIT_STEP1) {
+  FOR_START(k, cit1, 1, nz-1, 1, cit_step_add, RND) {
   /*for (k = 1; k < nz - 1; k++) {*/
-    FOR_RND_START(i, cit2, ist, iend-1, CIT_STEP1) {
+    FOR_START(i, cit2, ist, iend, 1, cit_step_add, RND) {
     /*for (i = ist; i < iend; i++) {*/
-      FOR_RND_START(j, cit3, 0, ny-1, CIT_STEP1) {
+      FOR_START(j, cit3, 0, ny, 1, cit_step_add, RND) {
       /*for (j = 0; j < ny; j++) {*/
         flux[j][0] = u[k][j][i][2];
         u31 = u[k][j][i][2] * rho_i[k][j][i];
@@ -384,20 +384,20 @@ void rhs()
         flux[j][3] = u[k][j][i][3] * u31;
         flux[j][4] = ( C1 * u[k][j][i][4] - C2 * q ) * u31;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(j, cit3, jst, jend-1, CIT_STEP1) {
+      FOR_START(j, cit3, jst, jend, 1, cit_step_add, RND) {
       /*for (j = jst; j < jend; j++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] =  rsd[k][j][i][m]
             - ty2 * ( flux[j+1][m] - flux[j-1][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(j, cit3, jst, ny-1, CIT_STEP1) {
+      FOR_START(j, cit3, jst, ny, 1, cit_step_add, RND) {
       /*for (j = jst; j < ny; j++) {*/
         tmp = rho_i[k][j][i];
 
@@ -422,9 +422,9 @@ void rhs()
           * ty3 * ( u31j*u31j - u31jm1*u31jm1 )
           + C1 * C5 * ty3 * ( u51j - u51jm1 );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(j, cit3, jst, jend-1, CIT_STEP1) {
+      FOR_START(j, cit3, jst, jend, 1, cit_step_add, RND) {
       /*for (j = jst; j < jend; j++) {*/
         rsd[k][j][i][0] = rsd[k][j][i][0]
           + dy1 * ty1 * (         u[k][j-1][i][0]
@@ -455,16 +455,16 @@ void rhs()
                           - 2.0 * u[k][j][i][4]
                           +       u[k][j+1][i][4] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
     //---------------------------------------------------------------------
     // fourth-order dissipation
     //---------------------------------------------------------------------
-    FOR_RND_START(i, cit2, ist, iend-1, CIT_STEP1) {
+    FOR_START(i, cit2, ist, iend, 1, cit_step_add, RND) {
     /*for (i = ist; i < iend; i++) {*/
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[k][1][i][m] = rsd[k][1][i][m]
           - dssp * ( + 5.0 * u[k][1][i][m]
@@ -476,15 +476,15 @@ void rhs()
                      - 4.0 * u[k][3][i][m]
                      +       u[k][4][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
-    FOR_RND_START(j, cit2, 3, ny-3-1, CIT_STEP1) {
+    FOR_START(j, cit2, 3, ny-3, 1, cit_step_add, RND) {
     /*for (j = 3; j < ny - 3; j++) {*/
-      FOR_RND_START(i, cit3, ist, iend-1, CIT_STEP1) {
+      FOR_START(i, cit3, ist, iend, 1, cit_step_add, RND) {
       /*for (i = ist; i < iend; i++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] = rsd[k][j][i][m]
             - dssp * (         u[k][j-2][i][m]
@@ -493,15 +493,15 @@ void rhs()
                        - 4.0 * u[k][j+1][i][m]
                        +       u[k][j+2][i][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 
-    FOR_RND_START(i, cit2, ist, iend-1, CIT_STEP1) {
+    FOR_START(i, cit2, ist, iend, 1, cit_step_add, RND) {
     /*for (i = ist; i < iend; i++) {*/
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[k][ny-3][i][m] = rsd[k][ny-3][i][m]
           - dssp * (         u[k][ny-5][i][m]
@@ -513,11 +513,11 @@ void rhs()
                      - 4.0 * u[k][ny-3][i][m]
                      + 5.0 * u[k][ny-2][i][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k < nz - 1; k++) {
     for (i = ist; i < iend; i++) {
@@ -650,11 +650,11 @@ void rhs()
   // zeta-direction flux differences
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(j, cit1, jst, jend-1, CIT_STEP1) {
+  FOR_START(j, cit1, jst, jend, 1, cit_step_add, RND) {
   /*for (j = jst; j < jend; j++) {*/
-    FOR_RND_START(i, cit2, ist, iend-1, CIT_STEP1) {
+    FOR_START(i, cit2, ist, iend, 1, cit_step_add, RND) {
     /*for (i = ist; i < iend; i++) {*/
-      FOR_RND_START(k, cit3, 0, nz-1, CIT_STEP1) {
+      FOR_START(k, cit3, 0, nz, 1, cit_step_add, RND) {
       /*for (k = 0; k < nz; k++) {*/
         utmp[k][0] = u[k][j][i][0];
         utmp[k][1] = u[k][j][i][1];
@@ -663,8 +663,8 @@ void rhs()
         utmp[k][4] = u[k][j][i][4];
         utmp[k][5] = rho_i[k][j][i];
       }
-      FOR_RND_END(cit3);
-      FOR_RND_START(k, cit3, 0, nz-1, CIT_STEP1) {
+      FOR_END(cit3);
+      FOR_START(k, cit3, 0, nz, 1, cit_step_add, RND) {
       /*for (k = 0; k < nz; k++) {*/
         flux[k][0] = utmp[k][3];
         u41 = utmp[k][3] * utmp[k][5];
@@ -676,20 +676,20 @@ void rhs()
         flux[k][3] = utmp[k][3] * u41 + C2 * (utmp[k][4]-q);
         flux[k][4] = ( C1 * utmp[k][4] - C2 * q ) * u41;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 1, nz-1-1, CIT_STEP1) {
+      FOR_START(k, cit3, 1, nz-1, 1, cit_step_add, RND) {
       /*for (k = 1; k < nz - 1; k++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rtmp[k][m] =  rsd[k][j][i][m]
             - tz2 * ( flux[k+1][m] - flux[k-1][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 1, nz-1, CIT_STEP1) {
+      FOR_START(k, cit3, 1, nz, 1, cit_step_add, RND) {
       /*for (k = 1; k < nz; k++) {*/
         tmp = utmp[k][5];
 
@@ -715,9 +715,9 @@ void rhs()
           * tz3 * ( u41k*u41k - u41km1*u41km1 )
           + C1 * C5 * tz3 * ( u51k - u51km1 );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 1, nz-1-1, CIT_STEP1) {
+      FOR_START(k, cit3, 1, nz-1, 1, cit_step_add, RND) {
       /*for (k = 1; k < nz - 1; k++) {*/
         rtmp[k][0] = rtmp[k][0]
           + dz1 * tz1 * (         utmp[k-1][0]
@@ -744,12 +744,12 @@ void rhs()
                           - 2.0 * utmp[k][4]
                           +       utmp[k+1][4] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // fourth-order dissipation
       //---------------------------------------------------------------------
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[1][j][i][m] = rtmp[1][m]
           - dssp * ( + 5.0 * utmp[1][m]
@@ -761,11 +761,11 @@ void rhs()
                      - 4.0 * utmp[3][m]
                      +       utmp[4][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(k, cit3, 3, nz-3-1, CIT_STEP1) {
+      FOR_START(k, cit3, 3, nz-3, 1, cit_step_add, RND) {
       /*for (k = 3; k < nz - 3; k++) {*/
-        FOR_RND_START(m, cit4, 0, 4, CIT_STEP1) {
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
           rsd[k][j][i][m] = rtmp[k][m]
             - dssp * (         utmp[k-2][m]
@@ -774,11 +774,11 @@ void rhs()
                        - 4.0 * utmp[k+1][m]
                        +       utmp[k+2][m] );
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
-      FOR_RND_START(m, cit3, 0, 4, CIT_STEP1) {
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
       /*for (m = 0; m < 5; m++) {*/
         rsd[nz-3][j][i][m] = rtmp[nz-3][m]
           - dssp * (         utmp[nz-5][m]
@@ -790,7 +790,7 @@ void rhs()
                      - 4.0 * utmp[nz-3][m]
                      + 5.0 * utmp[nz-2][m] );
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
     }
   }
 #else

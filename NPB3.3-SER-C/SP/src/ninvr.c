@@ -32,16 +32,50 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
-// block-diagonal matrix-vector multiplication              
+// block-diagonal matrix-vector multiplication
 //---------------------------------------------------------------------
 void ninvr()
 {
   int i, j, k;
   double r1, r2, r3, r4, r5, t1, t2;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(t_ninvr);
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 1, nz2+1, 1, cit_step_add, RND) {
+  /*for (k = 1; k <= nz2; k++) {*/
+    FOR_START(j, cit2, 1, ny2+1, 1, cit_step_add, RND) {
+    /*for (j = 1; j <= ny2; j++) {*/
+      FOR_START(i, cit3, 1, nx2+1, 1, cit_step_add, RND) {
+      /*for (i = 1; i <= nx2; i++) {*/
+        r1 = rhs[k][j][i][0];
+        r2 = rhs[k][j][i][1];
+        r3 = rhs[k][j][i][2];
+        r4 = rhs[k][j][i][3];
+        r5 = rhs[k][j][i][4];
+
+        t1 = bt * r3;
+        t2 = 0.5 * ( r4 + r5 );
+
+        rhs[k][j][i][0] = -r2;
+        rhs[k][j][i][1] =  r1;
+        rhs[k][j][i][2] = bt * ( r4 - r5 );
+        rhs[k][j][i][3] = -t1 + t2;
+        rhs[k][j][i][4] =  t1 + t2;
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
@@ -62,6 +96,7 @@ void ninvr()
       }
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(t_ninvr);
 }
 

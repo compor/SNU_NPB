@@ -4,6 +4,10 @@
 
 #include "adc.h"
 
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
+
 #define BlockSize 1024
 
 void swap4(void * num){
@@ -14,7 +18,7 @@ void swap4(void * num){
 }
 void swap8(void * num){
   char t, *p;
-  p = (char *) num;	  
+  p = (char *) num;
   t = *p; *p = *(p + 7); *(p + 7) = t;
   t = *(p + 1); *(p + 1) = *(p + 6); *(p + 6) = t;
   t = *(p + 2); *(p + 2) = *(p + 5); *(p + 5) = t;
@@ -48,8 +52,8 @@ void ShowFactorization(Factorization *nmbfct){
     }
     if(i>0) fprintf(stdout,"*");
     if(nmbfct->exp[i]==1)
-      fprintf(stdout,"%ld",nmbfct->mlt[i]);    
-    else 
+      fprintf(stdout,"%ld",nmbfct->mlt[i]);
+    else
       fprintf(stdout,"%ld^%ld",nmbfct->mlt[i],
                                nmbfct->exp[i]);
   }
@@ -61,7 +65,7 @@ long int adcprime[]={
   419,443,647,21737,31769,
   1427,18353,22817,34337,98717,
   3527,8693,9677,11093,18233};
-  
+
 long int ListFirstPrimes(long int mpr,long int *prlist){
 /*
   fprintf(stdout,"ListFirstPrimes: listing primes less than %ld...\n",
@@ -99,13 +103,24 @@ long long int GetLCM(long long int mask,
   long long int LCM=1;
   long int pr=2;
   int genexp=1,lexp=1,fct=2;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, maxprmfctr+1, 1, cit_step_add, RND) {
+  /*for(i=0;i<maxprmfctr+1;i++) {*/
+    expons[i]=0;
+  }
+  FOR_RND_END(cit1);
+#else
   for(i=0;i<maxprmfctr+1;i++)expons[i]=0;
+#endif // USE_CITERATOR
   i=0;
   while(mask>0){
     if(mask==2*(mask/2)){
       mask=mask>>1;
-      i++;  
+      i++;
       continue;
     }
     pr=adcprime[i];
@@ -114,6 +129,24 @@ long long int GetLCM(long long int mask,
   fprintf(stdout,"[%ld,%ld]\n",pr,genexp);
   ShowFactorization(fctlist[genexp]);
 */
+#ifdef USE_CITERATOR
+    FOR_START(j, cit1, 0, fctlist[pr-1]->dim-1+1, 1, cit_step_add, RND) {
+    /*for(j=0;j<fctlist[pr-1]->dim;j++){*/
+      fct=fctlist[pr-1]->mlt[j];
+      lexp=fctlist[pr-1]->exp[j];
+
+      FOR_START(k, cit2, 0, fctlist[genexp]->dim+1, 1, cit_step_add, RND) {
+      /*for(k=0;k<fctlist[genexp]->dim;k++){*/
+        if(fctlist[genexp]->mlt[k]==1) break;
+        if(fct!=fctlist[genexp]->mlt[k]) continue;
+        lexp-=fctlist[genexp]->exp[k];
+	break;
+      }
+      FOR_END(cit2);
+      if(expons[fct]<lexp)expons[fct]=lexp;
+    }
+    FOR_END(cit1);
+#else
     for(j=0;j<fctlist[pr-1]->dim;j++){
       fct=fctlist[pr-1]->mlt[j];
       lexp=fctlist[pr-1]->exp[j];
@@ -126,6 +159,7 @@ long long int GetLCM(long long int mask,
       }
       if(expons[fct]<lexp)expons[fct]=lexp;
     }
+#endif // USE_CITERATOR
     mask=mask>>1;
     i++;
   }
@@ -135,6 +169,17 @@ for(i=0;i<maxprmfctr;i++){
 }
 fprintf(stdout,"\n");
 */
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, maxprmfctr+1, 1, cit_step_add, RND) {
+  /*for(i=0;i<=maxprmfctr;i++){*/
+    while(expons[i]>0){
+      LCM*=i;
+      if(LCM>LARGE_NUM/maxprmfctr) return LCM;
+      expons[i]--;
+    }
+  }
+  FOR_END(cit1);
+#else
   for(i=0;i<=maxprmfctr;i++){
     while(expons[i]>0){
       LCM*=i;
@@ -142,6 +187,7 @@ fprintf(stdout,"\n");
       expons[i]--;
     }
   }
+#endif // USE_CITERATOR
 /*  fprintf(stdout,"==== %lld\n",LCM); */
   free(expons);
   return LCM;
@@ -157,7 +203,7 @@ void ExtendFactors(long int nmb,long int firstdiv,
     if(divfct->mlt[i]==1){
       if(fdivused==0){
         nmbfct->mlt[multnum]=firstdiv;
-        nmbfct->exp[multnum]=1;   
+        nmbfct->exp[multnum]=1;
       }
       break;
     }
@@ -167,13 +213,13 @@ void ExtendFactors(long int nmb,long int firstdiv,
       multnum++;
     }else if(divfct->mlt[i]==firstdiv){
       nmbfct->mlt[i]=divfct->mlt[i];
-      nmbfct->exp[i]=divfct->exp[i]+1;   
+      nmbfct->exp[i]=divfct->exp[i]+1;
       fdivused=1;
     }else{
       int j=i;
       if(fdivused==0) j=i+1;
       nmbfct->mlt[j]=divfct->mlt[i];
-      nmbfct->exp[j]=divfct->exp[i];    
+      nmbfct->exp[j]=divfct->exp[i];
     }
   }
 }
@@ -182,7 +228,7 @@ void GetFactorization(long int prnum,long int *prlist,
 /*fprintf(stdout,"GetFactorization: factorizing first %ld numbers.\n",
                 prnum);*/
   long int i=0,j=0;
-  Factorization *fct=(Factorization*)malloc(2*sizeof(Factorization)); 
+  Factorization *fct=(Factorization*)malloc(2*sizeof(Factorization));
   long int len=0,isft=0,div=1,firstdiv=1;
 
   fct->dim=2;
@@ -207,7 +253,7 @@ void GetFactorization(long int prnum,long int *prlist,
   fct->mlt[0]=3;
   fct->exp[0]=1;
   fctlist[3]=fct;
- 
+
   for(i=0;i<prlist[prnum-1];i++){
     len=0;
     isft=i;
@@ -231,7 +277,7 @@ void GetFactorization(long int prnum,long int *prlist,
         div=firstdiv;
         if(firstdiv*firstdiv==i){
           fct->mlt[0]=firstdiv;
-          fct->exp[0]=2;	  
+          fct->exp[0]=2;
 	}else{
 	  ExtendFactors(i,firstdiv,fct,fctlist);
         }
@@ -240,7 +286,7 @@ void GetFactorization(long int prnum,long int *prlist,
     }
     if(div==1){
       fct->mlt[0]=i;
-      fct->exp[0]=1;   
+      fct->exp[0]=1;
     }
     fctlist[i]=fct;
 /*
@@ -252,23 +298,23 @@ void GetFactorization(long int prnum,long int *prlist,
 
 long int adcexp[]={
   11,13,17,19,23,
-  23,29,31,37,41,	     	  
-  41,43,47,53,59,	     	  
+  23,29,31,37,41,
+  41,43,47,53,59,
   3,5,7,11,13};
 long int adcexpS[]={
   11,13,17,19,23};
-long int adcexpW[]={  
+long int adcexpW[]={
   2*2,2*2*2*5,2*3,2*2*5,2*3*7,
   23,29,31,2*2,2*2*19};
-long int adcexpA[]={  
+long int adcexpA[]={
   2*2,2*2*2*5,2*3,2*2*5,2*3*7,
-  2*19,2*13,2*19,2*2*2*13*19,2*2*2*19*19,                    
+  2*19,2*13,2*19,2*2*2*13*19,2*2*2*19*19,
   2*23,2*2*2*2,2*2*2*2*2*23,2*2*2*2*2,2*2*23};
-long int adcexpB[]={  
+long int adcexpB[]={
   2*2*7,2*2*2*5,2*3*7,2*2*5*7,2*3*7*7,
-  2*19,2*13,2*19,2*2*2*13*19,2*2*2*19*19,                      
+  2*19,2*13,2*19,2*2*2*13*19,2*2*2*19*19,
   2*31,2*2*2*2*31,2*2*2*2*2*31,2*2*2*2*2*29,2*2*29,
-  2*43,2*2,2*2,2*2*47,2*2*2*43};  
+  2*43,2*2,2*2,2*2*47,2*2*2*43};
 long int UpPrimeLim=100000;
 
 typedef struct dc_view{
@@ -297,14 +343,14 @@ DC_view *lvw0=(DC_view *)vw0, *lvw1=(DC_view *)vw1;
 int CalculateVeiwSizes(ADC_PAR *par){
   unsigned long long totalInBytes = 0;
   unsigned long long nViewDims, nCubeTuples = 0;
- 
+
   const char *adcfname=par->filename;
   int NDID=par->ndid;
   char clss=par->clss;
   int dcdim=par->dim;
   long long int tnum=par->tuplenum;
   long long int i=0,j=0;
-  Factorization  
+  Factorization
     **fctlist=(Factorization **) calloc(UpPrimeLim,sizeof(Factorization *));
   long int *prlist=(long int *) calloc(UpPrimeLim,sizeof(long int));
   int prnum=ListFirstPrimes(UpPrimeLim,prlist);
@@ -314,9 +360,14 @@ int CalculateVeiwSizes(ADC_PAR *par){
   FILE* view=NULL;
   int minvn=1, maxvn=(1<<dcdim), vinc=1;
   long idx=0;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
-  GetFactorization(prnum,prlist,fctlist); 
-  for(i=1;i<(1<<dcdim);i++){   
+  GetFactorization(prnum,prlist,fctlist);
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, (1<<dcdim)-1+1, 1, cit_step_add, RND) {
+  /*for(i=1;i<(1<<dcdim);i++){*/
     long long int LCM=1;
     switch(clss){
       case 'U':
@@ -339,15 +390,52 @@ int CalculateVeiwSizes(ADC_PAR *par){
     dcview[i].vsize=LCM;
     dcview[i].vidx=i;
   }
-  for(i=0;i<UpPrimeLim;i++){
+  FOR_END(cit1);
+#else
+  for(i=1;i<(1<<dcdim);i++){
+    long long int LCM=1;
+    switch(clss){
+      case 'U':
+        LCM=GetLCM(i,fctlist,adcexp);
+      break;
+      case 'S':
+        LCM=GetLCM(i,fctlist,adcexpS);
+      break;
+      case 'W':
+        LCM=GetLCM(i,fctlist,adcexpW);
+      break;
+      case 'A':
+        LCM=GetLCM(i,fctlist,adcexpA);
+      break;
+      case 'B':
+        LCM=GetLCM(i,fctlist,adcexpB);
+      break;
+    }
+    if(LCM>tnum) LCM=tnum;
+    dcview[i].vsize=LCM;
+    dcview[i].vidx=i;
+  }
+#endif // USE_CITERATOR
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, UpPrimeLim-1+1, 1, cit_step_add, RND) {
+  /*for(i=0;i<UpPrimeLim;i++){*/
     if(!fctlist[i]) continue;
-    if(fctlist[i]->mlt) free(fctlist[i]->mlt); 
-    if(fctlist[i]->exp) free(fctlist[i]->exp); 
+    if(fctlist[i]->mlt) free(fctlist[i]->mlt);
+    if(fctlist[i]->exp) free(fctlist[i]->exp);
     free(fctlist[i]);
   }
+  FOR_END(cit1);
+#else
+  for(i=0;i<UpPrimeLim;i++){
+    if(!fctlist[i]) continue;
+    if(fctlist[i]->mlt) free(fctlist[i]->mlt);
+    if(fctlist[i]->exp) free(fctlist[i]->exp);
+    free(fctlist[i]);
+  }
+#endif // USE_CITERATOR
   free(fctlist);
   free(prlist);
-   
+
   vszefname0="view.sz";
   vszefname=(char*)calloc(BlockSize,sizeof(char));
   sprintf(vszefname,"%s.%s.%d",adcfname,vszefname0,NDID);
@@ -355,7 +443,7 @@ int CalculateVeiwSizes(ADC_PAR *par){
     fprintf(stderr,"CalculateVeiwSizes: Can't open file: %s\n",vszefname);
     return 0;
   }
-  qsort( dcview, (1<<dcdim), sizeof(DC_view),CompareViewsBySize);	
+  qsort( dcview, (1<<dcdim), sizeof(DC_view),CompareViewsBySize);
 
   switch(clss){
     case 'U':
@@ -372,11 +460,11 @@ int CalculateVeiwSizes(ADC_PAR *par){
       vinc=1<<14;
     break;
   }
-   for(i=minvn;i<maxvn;i+=vinc){   
+   for(i=minvn;i<maxvn;i+=vinc){
     nViewDims = 0;
     fprintf(view,"Selection:");
     idx=dcview[i].vidx;
-    for(j=0;j<dcdim;j++) 
+    for(j=0;j<dcdim;j++)
       if((idx>>j)&0x1==1) { fprintf(view," %lld",j+1); nViewDims++;}
     fprintf(view,"\nView Size: %lld\n",dcview[i].vsize);
 
@@ -384,9 +472,9 @@ int CalculateVeiwSizes(ADC_PAR *par){
     nCubeTuples += dcview[i].vsize;
 
   }
-  fprintf(view,"\nTotal in bytes: %lld  Number of tuples: %lld\n", 
+  fprintf(view,"\nTotal in bytes: %lld  Number of tuples: %lld\n",
           totalInBytes, nCubeTuples);
-  
+
   fclose(view);
   free(dcview);
   fprintf(stdout,"View sizes are written into %s\n",vszefname);
@@ -440,7 +528,7 @@ int ParseParFile(char* parfname,ADC_PAR *par){
             sscanf(pos,"%c",&(par->clss));
           break;
         }
-        break;        
+        break;
       }
       i++;
       kwd=adcKeyword[i];
@@ -469,7 +557,7 @@ int ParseParFile(char* parfname,ADC_PAR *par){
       par->mnum=1;
       par->tuplenum=10000000;
     break;
-  }  
+  }
   return 1;
 }
 int WriteADCPar(ADC_PAR *par,char* fname){
@@ -508,7 +596,7 @@ long int adcgen[]={
   2,2,5,31,7,
   2,3,3,3,2,
   5,2,2,2,3};
-  
+
 int GetNextTuple(int dcdim, int measnum,
                  long long int* attr,long long int* meas,
 		 char clss){
@@ -519,6 +607,9 @@ int GetNextTuple(int dcdim, int measnum,
   int maxattr=0;
   static long int seed[20];
   long int *locexp=NULL;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   if(dcdim>maxdim){
     fprintf(stderr,"GetNextTuple: number of dcdim is too large:%d",
@@ -544,7 +635,7 @@ int GetNextTuple(int dcdim, int measnum,
     case 'B':
     locexp=adcexpB;
     break;
-  }  
+  }
   if(tuplenum==0){
     for(i=0;i<dcdim;i++){
       int tmpgen=adcgen[i];
@@ -562,16 +653,37 @@ int GetNextTuple(int dcdim, int measnum,
   }
   tuplenum++;
   maxattr=0;
-  for(i=0;i<dcdim;i++){
+
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, dcdim-1+1, 1, cit_step_add, RND) {
+  /*for(i=0;i<dcdim;i++){*/
     attr[i]=seed[i]*adcgen[i];
-    attr[i]-=adcprime[i]*((long long int)attr[i]/adcprime[i]); 
+    attr[i]-=adcprime[i]*((long long int)attr[i]/adcprime[i]);
     seed[i]=attr[i];
     if(seed[i]>maxattr) maxattr=seed[i];
-  }		     	  
+  }
+  FOR_END(cit1);
+#else
+  for(i=0;i<dcdim;i++){
+    attr[i]=seed[i]*adcgen[i];
+    attr[i]-=adcprime[i]*((long long int)attr[i]/adcprime[i]);
+    seed[i]=attr[i];
+    if(seed[i]>maxattr) maxattr=seed[i];
+  }
+#endif // USE_CITERATOR
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, measnum-1+1, 1, cit_step_add, RND) {
+  /*for(i=0;i<measnum;i++){*/
+    meas[i]=(long long int)(seed[i]*maxattr);
+    meas[i]-=measbound*(meas[i]/measbound);
+  }
+  FOR_END(cit1);
+#else
   for(i=0;i<measnum;i++){
     meas[i]=(long long int)(seed[i]*maxattr);
     meas[i]-=measbound*(meas[i]/measbound);
-  }		     	  
+  }
+#endif // USE_CITERATOR
   return 1;
 }
 
@@ -580,10 +692,13 @@ int GenerateADC(ADC_PAR *par){
       mesnum=par->mnum,
       tplnum=par->tuplenum;
   char *adcfname=(char*)calloc(BlockSize,sizeof(char));
-  
+
   FILE *adc;
   int i=0,j=0;
-  long long int* attr=NULL,*mes=NULL; 
+  long long int* attr=NULL,*mes=NULL;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 /*
    if(par->isascii==1){
     sprintf(adcfname,"%s.tpl.%d",par->filename,par->ndid);
@@ -604,6 +719,34 @@ int GenerateADC(ADC_PAR *par){
 
   fprintf(stdout,"\nGenerateADC: writing %d tuples of %d attributes and %d measures to %s\n",
 		  tplnum,dcdim,mesnum,adcfname);
+#ifdef USE_CITERATOR
+   FOR_START(i, cit1, 0, tplnum-1+1, 1, cit_step_add, RND) {
+   /*for(i=0;i<tplnum;i++){*/
+    if(!GetNextTuple(dcdim,mesnum,attr,mes,par->clss)) return 0;
+/*
+     if(par->isascii==1){
+      for(int j=0;j<dcdim;j++)fprintf(adc,"%lld ",attr[j]);
+      for(int j=0;j<mesnum;j++)fprintf(adc,"%lld ",mes[j]);
+      fprintf(adc,"\n");
+    }else{
+*/
+      FOR_START(j, cit2, 0, mesnum-1+1, 1, cit_step_add, RND) {
+      /*for(j=0;j<mesnum;j++){*/
+        long long mv =  mes[j];
+        if(par->inverse_endian==1) swap8(&mv);
+        fwrite(&mv, 8, 1, adc);
+      }
+      FOR_END(cit2);
+      FOR_START(j, cit2, 0, dcdim-1+1, 1, cit_step_add, FWD) {
+      /*for(j=0;j<dcdim;j++){*/
+        int av = attr[j];
+        if(par->inverse_endian==1) swap4(&av);
+        fwrite(&av, 4, 1, adc);
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
    for(i=0;i<tplnum;i++){
     if(!GetNextTuple(dcdim,mesnum,attr,mes,par->clss)) return 0;
 /*
@@ -613,17 +756,18 @@ int GenerateADC(ADC_PAR *par){
       fprintf(adc,"\n");
     }else{
 */
-      for(j=0;j<mesnum;j++){ 
+      for(j=0;j<mesnum;j++){
     	long long mv =  mes[j];
 	    if(par->inverse_endian==1) swap8(&mv);
-	    fwrite(&mv, 8, 1, adc); 
+	    fwrite(&mv, 8, 1, adc);
       }
-      for(j=0;j<dcdim;j++){ 
-    	int av = attr[j]; 
+      for(j=0;j<dcdim;j++){
+    	int av = attr[j];
 	if(par->inverse_endian==1) swap4(&av);
-	fwrite(&av, 4, 1, adc); 
+	fwrite(&av, 4, 1, adc);
       }
     }
+#endif // USE_CITERATOR
 /*  } */
   fclose(adc);
   fprintf(stdout,"Binary ADC file %s ",adcfname);

@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //------------------------------------------------------------------
 // Map values from mortar(tmor) to element(tx)
@@ -41,10 +44,282 @@ void transf(double tmor[], double tx[])
   double tmp[2][LX1][LX1];
   int ig1, ig2, ig3, ig4, ie, iface, il1, il2, il3, il4;
   int nnje, ije1, ije2, col, i, j, ig, il;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6, *cit7;
+#endif // USE_CITERATOR
 
   // zero out tx on element boundaries
   col2(tx, (double *)tmult, ntot);
 
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+      // get the collocation point index of the four local corners on the
+      // face iface of element ie
+      il1 = idel[ie][iface][0][0];
+      il2 = idel[ie][iface][0][LX1-1];
+      il3 = idel[ie][iface][LX1-1][0];
+      il4 = idel[ie][iface][LX1-1][LX1-1];
+
+      // get the mortar indices of the four local corners
+      ig1 = idmo[ie][iface][0][0][0][0];
+      ig2 = idmo[ie][iface][1][0][0][LX1-1];
+      ig3 = idmo[ie][iface][0][1][LX1-1][0];
+      ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
+
+      // copy the value from tmor to tx for these four local corners
+      tx[il1] = tmor[ig1];
+      tx[il2] = tmor[ig2];
+      tx[il3] = tmor[ig3];
+      tx[il4] = tmor[ig4];
+
+      // nnje=1 for conforming faces, nnje=2 for nonconforming faces
+      if (cbc[ie][iface] == 3) {
+        nnje = 2;
+      } else {
+        nnje = 1;
+      }
+
+      // for nonconforming faces
+      if (nnje == 2) {
+        // nonconforming faces have four pieces of mortar, first map them to
+        // two intermediate mortars, stored in tmp
+        r_init((double *)tmp, LX1*LX1*2, 0.0);
+
+        FOR_START(ije1, cit3, 0, nnje, 1, cit_step_add, RND) {
+        /*for (ije1 = 0; ije1 < nnje; ije1++) {*/
+          FOR_START(ije2, cit4, 0, nnje, 1, cit_step_add, RND) {
+          /*for (ije2 = 0; ije2 < nnje; ije2++) {*/
+            FOR_START(col, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (col = 0; col < LX1; col++) {*/
+              // in each row col, when coloumn i=1 or LX1, the value
+              // in tmor is copied to tmp
+              i = v_end[ije2];
+              ig = idmo[ie][iface][ije2][ije1][col][i];
+              tmp[ije1][col][i] = tmor[ig];
+
+              // in each row col, value in the interior three collocation
+              // points is computed by apply mapping matrix qbnew to tmor
+              FOR_START(i, cit6, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][col][i];
+                FOR_START(j, cit7, 0, LX1, 1, cit_step_add, RND) {
+                /*for (j = 0; j < LX1; j++) {*/
+                  ig = idmo[ie][iface][ije2][ije1][col][j];
+                  tmp[ije1][col][i] = tmp[ije1][col][i] +
+                    qbnew[ije2][j][i-1]*tmor[ig];
+                }
+                FOR_END(cit7);
+              }
+              FOR_END(cit6);
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // mapping from two pieces of intermediate mortar tmp to element
+        // face tx
+        FOR_START(ije1, cit3, 0, nnje, 1, cit_step_add, RND) {
+        /*for (ije1 = 0; ije1 < nnje; ije1++) {*/
+          // the first column, col=0, is an edge of face iface.
+          // the value on the three interior collocation points, tx, is
+          // computed by applying mapping matrices qbnew to tmp.
+          // the mapping result is divided by 2, because there will be
+          // duplicated contribution from another face sharing this edge.
+          col = 0;
+          FOR_START(i, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il= idel[ie][iface][i][col];
+            FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tx[il] = tx[il] + qbnew[ije1][j][i-1]*
+                tmp[ije1][j][col]*0.5;
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+
+          // for column 1 ~ lx-2
+          FOR_START(col, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (col = 1; col < LX1-1; col++) {*/
+            //when i=0 or LX1-1, the collocation points are also on an edge of
+            // the face, so the mapping result also needs to be divided by 2
+            i = v_end[ije1];
+            il = idel[ie][iface][i][col];
+            tx[il] = tx[il]+tmp[ije1][i][col]*0.5;
+
+            // compute the value at interior collocation points in
+            // columns 1 ~ LX1-1
+            FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+            /*for (i = 1; i < LX1-1; i++) {*/
+              il = idel[ie][iface][i][col];
+              FOR_START(j, cit6, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                tx[il] = tx[il] + qbnew[ije1][j][i-1]* tmp[ije1][j][col];
+              }
+              FOR_END(cit6);
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+
+          // same as col=0
+          col = LX1-1;
+          FOR_START(i, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][i][col];
+            FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tx[il] = tx[il] + qbnew[ije1][j][i-1]*
+                tmp[ije1][j][col]*0.5;
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // for conforming faces
+      } else {
+        // face interior
+        FOR_START(col, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (col = 1; col < LX1-1; col++) {*/
+          FOR_START(i, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][col][i];
+            ig = idmo[ie][iface][0][0][col][i];
+            tx[il] = tmor[ig];
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // edges of conforming faces
+
+        // if local edge 0 is a nonconforming edge
+        if (idmo[ie][iface][0][0][0][LX1-1] != -1) {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][0][i];
+            FOR_START(ije1, cit4, 0, 2, 1, cit_step_add, RND) {
+            /*for (ije1 = 0; ije1 < 2; ije1++) {*/
+              FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                ig = idmo[ie][iface][ije1][0][0][j];
+                tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+              }
+              FOR_END(cit5);
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 0 is a conforming edge
+        } else {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][0][i];
+            ig = idmo[ie][iface][0][0][0][i];
+            tx[il] = tmor[ig];
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 1 is a nonconforming edge
+        if (idmo[ie][iface][1][0][1][LX1-1] != -1) {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][i][LX1-1];
+            FOR_START(ije1, cit4, 0, 2, 1, cit_step_add, RND) {
+            /*for (ije1 = 0; ije1 < 2; ije1++) {*/
+              FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                ig = idmo[ie][iface][1][ije1][j][LX1-1];
+                tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+              }
+              FOR_END(cit5);
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 1 is a conforming edge
+        } else {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][i][LX1-1];
+            ig = idmo[ie][iface][0][0][i][LX1-1];
+            tx[il] = tmor[ig];
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 2 is a nonconforming edge
+        if (idmo[ie][iface][0][1][LX1-1][1] != -1) {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][LX1-1][i];
+            FOR_START(ije1, cit4, 0, 2, 1, cit_step_add, RND) {
+            /*for (ije1 = 0; ije1 < 2; ije1++) {*/
+              FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                ig = idmo[ie][iface][ije1][1][LX1-1][j];
+                tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+              }
+              FOR_END(cit5);
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 2 is a conforming edge
+        } else {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][LX1-1][i];
+            ig = idmo[ie][iface][0][0][LX1-1][i];
+            tx[il] = tmor[ig];
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 3 is a nonconforming edge
+        if (idmo[ie][iface][0][0][LX1-1][0] != -1) {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][i][0];
+            FOR_START(ije1, cit4, 0, 2, 1, cit_step_add, RND) {
+            /*for (ije1 = 0; ije1 < 2; ije1++) {*/
+              FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                ig = idmo[ie][iface][0][ije1][j][0];
+                tx[il] = tx[il] + qbnew[ije1][j][i-1]*tmor[ig]*0.5;
+              }
+              FOR_END(cit5);
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+          // if local edge 3 is a conforming edge
+        } else {
+          FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (i = 1; i < LX1-1; i++) {*/
+            il = idel[ie][iface][i][0];
+            ig = idmo[ie][iface][0][0][i][0];
+            tx[il] = tmor[ig];
+          }
+          FOR_END(cit3);
+        }
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       // get the collocation point index of the four local corners on the
@@ -246,6 +521,7 @@ void transf(double tmor[], double tx[])
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -261,9 +537,302 @@ void transfb(double tmor[], double tx[])
   double tmp, tmp1, temp[2][LX1][LX1], top[2][LX1];
   int il1, il2, il3, il4, ig1, ig2, ig3, ig4, ie, iface, nnje;
   int ije1, ije2, col, i, j, ije, ig, il;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6, *cit7;
+#endif // USE_CITERATOR
 
   r_init(tmor, nmor, 0.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+      // nnje=1 for conforming faces, nnje=2 for nonconforming faces
+      if (cbc[ie][iface] == 3) {
+        nnje = 2;
+      } else {
+        nnje = 1;
+      }
+
+      // get collocation point index of four local corners on the face
+      il1 = idel[ie][iface][0][0];
+      il2 = idel[ie][iface][0][LX1-1];
+      il3 = idel[ie][iface][LX1-1][0];
+      il4 = idel[ie][iface][LX1-1][LX1-1];
+
+      // get the mortar indices of the four local corners
+      ig1 = idmo[ie][iface][0][0][0][0];
+      ig2 = idmo[ie][iface][1][0][0][LX1-1];
+      ig3 = idmo[ie][iface][0][1][LX1-1][0];
+      ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
+
+      // sum the values from tx to tmor for these four local corners
+      // only 1/3 of the value is summed, since there will be two duplicated
+      // contributions from the other two faces sharing this vertex
+      tmor[ig1] = tmor[ig1]+tx[il1]*third;
+      tmor[ig2] = tmor[ig2]+tx[il2]*third;
+      tmor[ig3] = tmor[ig3]+tx[il3]*third;
+      tmor[ig4] = tmor[ig4]+tx[il4]*third;
+
+      // for nonconforming faces
+      if (nnje == 2) {
+        r_init((double *)temp, LX1*LX1*2, 0.0);
+
+        // nonconforming faces have four pieces of mortar, first map tx to
+        // two intermediate mortars stored in temp
+        FOR_START(ije2, cit3, 0, nnje, 1, cit_step_add, RND) {
+        /*for (ije2 = 0; ije2 < nnje; ije2++) {*/
+          shift = ije2;
+          FOR_START(col, cit4, 0, LX1, 1, cit_step_add, RND) {
+          /*for (col = 0; col < LX1; col++) {*/
+            // For mortar points on face edge (top and bottom), copy the
+            // value from tx to temp
+            il = idel[ie][iface][v_end[ije2]][col];
+            temp[ije2][v_end[ije2]][col] = tx[il];
+
+            // For mortar points on face edge (top and bottom), calculate
+            // the interior points' contribution to them, i.e. top()
+            j = v_end[ije2];
+            tmp = 0.0;
+            FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+            /*for (i = 1; i < LX1-1; i++) {*/
+              il = idel[ie][iface][i][col];
+              tmp = tmp + qbnew[ije2][j][i-1]*tx[il];
+            }
+            FOR_END(cit5);
+
+            top[ije2][col] = tmp;
+
+            // Use mapping matrices qbnew to map the value from tx to temp
+            // for mortar points not on the top bottom face edge.
+            FOR_START(j, cit5, 2-shift-1, LX1-shift, 1, cit_step_add, RND) {
+            /*for (j = 2-shift-1; j < LX1-shift; j++) {*/
+              tmp = 0.0;
+              FOR_START(i, cit6, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][i][col];
+                tmp = tmp + qbnew[ije2][j][i-1]*tx[il];
+              };
+              FOR_END(cit6);
+              temp[ije2][j][col] = tmp + temp[ije2][j][col];
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // mapping from temp to tmor
+        FOR_START(ije1, cit3, 0, nnje, 1, cit_step_add, RND) {
+        /*for (ije1 = 0; ije1 < nnje; ije1++) {*/
+          shift = ije1;
+          FOR_START(ije2, cit4, 0, nnje, 1, cit_step_add, RND) {
+          /*for (ije2 = 0; ije2 < nnje; ije2++) {*/
+
+            // for each column of collocation points on a piece of mortar
+            FOR_START(col, cit5, 2-shift-1, LX1-shift, 1, cit_step_add, RND) {
+            /*for (col = 2-shift-1; col < LX1-shift; col++) {*/
+
+              // For the end point, which is on an edge (local edge 1,3),
+              // the contribution is halved since there will be duplicated
+              // contribution from another face sharing this edge.
+
+              ig = idmo[ie][iface][ije2][ije1][col][v_end[ije2]];
+              tmor[ig] = tmor[ig]+temp[ije1][col][v_end[ije2]]*0.5;
+
+              // In each row of collocation points on a piece of mortar,
+              // sum the contributions from interior collocation points
+              // (i=1,LX1-2)
+              FOR_START(j, cit6, 0, LX1, 1, cit_step_add, RND) {
+              /*for (j = 0; j < LX1; j++) {*/
+                tmp = 0.0;
+                FOR_START(i, cit7, 1, LX1-1, 1, cit_step_add, RND) {
+                /*for (i = 1; i < LX1-1; i++) {*/
+                  tmp = tmp + qbnew[ije2][j][i-1] * temp[ije1][col][i];
+                }
+                FOR_END(cit7);
+                ig = idmo[ie][iface][ije2][ije1][col][j];
+                tmor[ig] = tmor[ig]+tmp;
+              }
+              FOR_END(cit6);
+            }
+            FOR_END(cit5);
+
+            // For tmor on local edge 0 and 2, tmp is the contribution from
+            // an edge, so it is halved because of duplicated contribution
+            // from another face sharing this edge. tmp1 is contribution
+            // from face interior.
+
+            col = v_end[ije1];
+            ig = idmo[ie][iface][ije2][ije1][col][v_end[ije2]];
+            tmor[ig] = tmor[ig]+top[ije1][v_end[ije2]]*0.5;
+            FOR_START(j, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tmp = 0.0;
+              tmp1 = 0.0;
+              FOR_START(i, cit6, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                tmp  = tmp  + qbnew[ije2][j][i-1] * temp[ije1][col][i];
+                tmp1 = tmp1 + qbnew[ije2][j][i-1] * top[ije1][i];
+              }
+              FOR_END(cit6);
+              ig = idmo[ie][iface][ije2][ije1][col][j];
+              tmor[ig] = tmor[ig]+tmp*0.5+tmp1;
+            }
+            FOR_END(cit5);
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // for conforming faces
+      } else {
+
+        // face interior
+        FOR_START(col, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (col = 1; col < LX1-1; col++) {*/
+          FOR_START(j, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][col][j];
+            ig = idmo[ie][iface][0][0][col][j];
+            tmor[ig] = tmor[ig]+tx[il];
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        // edges of conforming faces
+
+        // if local edge 0 is a nonconforming edge
+        if (idmo[ie][iface][0][0][0][LX1-1] != -1) {
+          FOR_START(ije, cit3, 0, 2, 1, cit_step_add, RND) {
+          /*for (ije = 0; ije < 2; ije++) {*/
+            FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tmp = 0.0;
+              FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][0][i];
+                tmp= tmp + qbnew[ije][j][i-1]*tx[il];
+              }
+              FOR_END(cit5);
+              ig = idmo[ie][iface][ije][0][0][j];
+              tmor[ig] = tmor[ig]+tmp*0.5;
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 0 is a conforming edge
+        } else {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][0][j];
+            ig = idmo[ie][iface][0][0][0][j];
+            tmor[ig] = tmor[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 1 is a nonconforming edge
+        if (idmo[ie][iface][1][0][1][LX1-1] != -1) {
+          FOR_START(ije, cit3, 0, 2, 1, cit_step_add, RND) {
+          /*for (ije = 0; ije < 2; ije++) {*/
+            FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tmp = 0.0;
+              FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][i][LX1-1];
+                tmp = tmp + qbnew[ije][j][i-1]*tx[il];
+              }
+              FOR_END(cit5);
+              ig = idmo[ie][iface][1][ije][j][LX1-1];
+              tmor[ig] = tmor[ig]+tmp*0.5;
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 1 is a conforming edge
+        } else {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][LX1-1];
+            ig = idmo[ie][iface][0][0][j][LX1-1];
+            tmor[ig] = tmor[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 2 is a nonconforming edge
+        if (idmo[ie][iface][0][1][LX1-1][1] != -1) {
+          FOR_START(ije, cit3, 0, 2, 1, cit_step_add, RND) {
+          /*for (ije = 0; ije < 2; ije++) {*/
+            FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tmp = 0.0;
+              FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][LX1-1][i];
+                tmp = tmp + qbnew[ije][j][i-1]*tx[il];
+              }
+              FOR_END(cit5);
+              ig = idmo[ie][iface][ije][1][LX1-1][j];
+              tmor[ig] = tmor[ig]+tmp*0.5;
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 2 is a conforming edge
+        } else {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][LX1-1][j];
+            ig = idmo[ie][iface][0][0][LX1-1][j];
+            tmor[ig] = tmor[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        // if local edge 3 is a nonconforming edge
+        if (idmo[ie][iface][0][0][LX1-1][0] != -1) {
+          FOR_START(ije, cit3, 0, 2, 1, cit_step_add, RND) {
+          /*for (ije = 0; ije < 2; ije++) {*/
+            FOR_START(j, cit4, 0, LX1, 1, cit_step_add, RND) {
+            /*for (j = 0; j < LX1; j++) {*/
+              tmp = 0.0;
+              FOR_START(i, cit5, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (i = 1; i < LX1-1; i++) {*/
+                il = idel[ie][iface][i][0];
+                tmp = tmp + qbnew[ije][j][i-1]*tx[il];
+              }
+              FOR_END(cit5);
+              ig = idmo[ie][iface][0][ije][j][0];
+              tmor[ig] = tmor[ig]+tmp*0.5;
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if local edge 3 is a conforming edge
+        } else {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][0];
+            ig = idmo[ie][iface][0][0][j][0];
+            tmor[ig] = tmor[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+      } //nnje=1
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       // nnje=1 for conforming faces, nnje=2 for nonconforming faces
@@ -488,6 +1057,7 @@ void transfb(double tmor[], double tx[])
       } //nnje=1
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -504,23 +1074,50 @@ void transfb_cor_e(int n, double *tmor, double tx[LX1][LX1][LX1])
 {
   double tmp;
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   tmp = tx[0][0][0];
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    tmp = tmp + qbnew[0][0][i-1]*tx[0][0][i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     tmp = tmp + qbnew[0][0][i-1]*tx[0][0][i];
   }
+#endif // USE_CITERATOR
 
   if (n > 1) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmp = tmp + qbnew[0][0][i-1]*tx[0][i][0];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1-1; i++) {
       tmp = tmp + qbnew[0][0][i-1]*tx[0][i][0];
     }
+#endif // USE_CITERATOR
   }
 
   if (n == 3) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmp = tmp + qbnew[0][0][i-1]*tx[i][0][0];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1-1; i++) {
       tmp = tmp + qbnew[0][0][i-1]*tx[i][0][0];
     }
+#endif // USE_CITERATOR
   }
 
   *tmor = tmp;
@@ -540,50 +1137,122 @@ void transfb_cor_f(int n, double *tmor, double tx[LX1][LX1][LX1])
 {
   double temp[LX1], tmp;
   int col, i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   r_init(temp, LX1, 0.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (col = 0; col < LX1; col++) {*/
+    temp[col] = tx[0][0][col];
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      temp[col] = temp[col] + qbnew[0][0][i-1]*tx[0][i][col];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 0; col < LX1; col++) {
     temp[col] = tx[0][0][col];
     for (i = 1; i < LX1-1; i++) {
       temp[col] = temp[col] + qbnew[0][0][i-1]*tx[0][i][col];
     }
   }
+#endif // USE_CITERATOR
   tmp = temp[0];
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    tmp = tmp + qbnew[0][0][i-1] *temp[i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     tmp = tmp + qbnew[0][0][i-1] *temp[i];
   }
+#endif // USE_CITERATOR
 
   if (n == 5) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmp = tmp + qbnew[0][0][i-1] *tx[i][0][0];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1-1; i++) {
       tmp = tmp + qbnew[0][0][i-1] *tx[i][0][0];
     }
+#endif // USE_CITERATOR
   }
 
   if (n >= 6) {
     r_init(temp, LX1, 0.0);
+#ifdef USE_CITERATOR
+    FOR_START(col, cit1, 0, LX1, 1, cit_step_add, RND) {
+    /*for (col = 0; col < LX1; col++) {*/
+      FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        temp[col] = temp[col] + qbnew[0][0][i-1]*tx[i][0][col];
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
     for (col = 0; col < LX1; col++) {
       for (i = 1; i < LX1-1; i++) {
         temp[col] = temp[col] + qbnew[0][0][i-1]*tx[i][0][col];
       }
     }
+#endif // USE_CITERATOR
     tmp = tmp+temp[0];
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmp = tmp +qbnew[0][0][i-1] *temp[i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1-1; i++) {
       tmp = tmp +qbnew[0][0][i-1] *temp[i];
     }
+#endif // USE_CITERATOR
   }
 
   if (n == 7) {
     r_init(temp, LX1, 0.0);
+#ifdef USE_CITERATOR
+    FOR_START(col, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (col = 1; col < LX1-1; col++) {*/
+      FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        temp[col] = temp[col] + qbnew[0][0][i-1]*tx[i][col][0];
+      }
+      FOR_END(cit2);
+    }
+    FOR_END(cit1);
+#else
     for (col = 1; col < LX1-1; col++) {
       for (i = 1; i < LX1-1; i++) {
         temp[col] = temp[col] + qbnew[0][0][i-1]*tx[i][col][0];
       }
     }
+#endif // USE_CITERATOR
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmp = tmp + qbnew[0][0][i-1] *temp[i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1-1; i++) {
       tmp = tmp + qbnew[0][0][i-1] *temp[i];
     }
+#endif // USE_CITERATOR
   }
 
   *tmor = tmp;
@@ -632,13 +1301,28 @@ void transf_nc(double tmor[LX1][LX1], double tx[LX1][LX1])
 void transfb_nc0(double tmor[LX1][LX1], double tx[LX1][LX1][LX1])
 {
   int i, j;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2;
+#endif // USE_CITERATOR
 
   r_init((double *)tmor, LX1*LX1, 0.0);
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmor[0][j]= tmor[0][j] + qbnew[0][j][i-1]*tx[0][0][i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 1; i < LX1-1; i++) {
       tmor[0][j]= tmor[0][j] + qbnew[0][j][i-1]*tx[0][0][i];
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -653,12 +1337,39 @@ void transfb_nc2(double tmor[LX1][LX1], double tx[LX1][LX1])
 {
   double bottom[LX1], temp[LX1][LX1];
   int col, j, i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   r_init((double *)tmor, LX1*LX1, 0.0);
   r_init((double *)temp, LX1*LX1, 0.0);
   tmor[0][0] = tx[0][0];
 
   // mapping from tx to intermediate mortar temp + bottom
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (col = 0; col < LX1; col++) {*/
+    temp[0][col] = tx[0][col];
+    j = 0;
+    bottom[col] = 0.0;;
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      bottom[col] = bottom[col] + qbnew[0][j][i-1]*tx[i][col];
+    }
+    FOR_END(cit2);
+
+    FOR_START(j, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1; j++) {*/
+      FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        temp[j][col] = temp[j][col] + qbnew[0][j][i-1]*tx[i][col];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 0; col < LX1; col++) {
     temp[0][col] = tx[0][col];
     j = 0;
@@ -673,19 +1384,49 @@ void transfb_nc2(double tmor[LX1][LX1], double tx[LX1][LX1])
       }
     }
   }
+#endif // USE_CITERATOR
 
   // from intermediate mortar to mortar
 
   // On the nonconforming edge, temp is divided by 2 as there will be
   // a duplicate contribution from another face sharing this edge
   col = 0;
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      tmor[col][j] = tmor[col][j]+ qbnew[0][j][i-1] * bottom[i] +
+        qbnew[0][j][i-1] * temp[col][i] * 0.5;
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 1; i < LX1-1; i++) {
       tmor[col][j] = tmor[col][j]+ qbnew[0][j][i-1] * bottom[i] +
         qbnew[0][j][i-1] * temp[col][i] * 0.5;
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 1, LX1, 1, cit_step_add, RND) {
+  /*for (col = 1; col < LX1; col++) {*/
+    tmor[col][0] = tmor[col][0]+temp[col][0];
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        tmor[col][j] = tmor[col][j] + qbnew[0][j][i-1] *temp[col][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 1; col < LX1; col++) {
     tmor[col][0] = tmor[col][0]+temp[col][0];
     for (j = 0; j < LX1; j++) {
@@ -694,6 +1435,7 @@ void transfb_nc2(double tmor[LX1][LX1], double tx[LX1][LX1])
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -705,6 +1447,9 @@ void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1])
 {
   double bottom[LX1], temp[LX1][LX1];
   int col, j, i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   r_init((double *)tmor, LX1*LX1, 0.0);
   r_init((double *)temp, LX1*LX1, 0.0);
@@ -714,6 +1459,30 @@ void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1])
   // Since the calling subroutine is only interested in the value on the
   // mortar (location (0,0)), only this piece of mortar is calculated.
 
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (col = 0; col < LX1; col++) {*/
+    temp[0][col] = tx[0][col];
+    j = 0;
+    bottom[col] = 0.0;
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      bottom[col] = bottom[col] + qbnew[0][j][i-1]*tx[i][col];
+    }
+    FOR_END(cit2);
+
+    FOR_START(j, cit2, 1, LX1, 1, cit_step_add, RND) {
+    /*for (j = 1; j < LX1; j++) {*/
+      FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        temp[j][col] = temp[j][col] + qbnew[0][j][i-1]*tx[i][col];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 0; col < LX1; col++) {
     temp[0][col] = tx[0][col];
     j = 0;
@@ -728,9 +1497,24 @@ void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1])
       }
     }
   }
+#endif // USE_CITERATOR
 
   col = 0;
   tmor[col][0] = tmor[col][0]+bottom[0];
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, LX1, 1, cit_step_add, RND) {
+  /*for (j = 0; j < LX1; j++) {*/
+    FOR_START(i, cit2, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1-1; i++) {*/
+      // temp is not divided by 2 here. It includes the contribution
+      // from the other conforming face.
+      tmor[col][j] = tmor[col][j] + qbnew[0][j][i-1] *bottom[i] +
+                                    qbnew[0][j][i-1] *temp[col][i];
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < LX1; j++) {
     for (i = 1; i < LX1-1; i++) {
       // temp is not divided by 2 here. It includes the contribution
@@ -739,7 +1523,24 @@ void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1])
                                     qbnew[0][j][i-1] *temp[col][i];
     }
   }
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(col, cit1, 1, LX1, 1, cit_step_add, RND) {
+  /*for (col = 1; col < LX1; col++) {*/
+    tmor[col][0] = tmor[col][0]+temp[col][0];
+    FOR_START(j, cit2, 0, LX1, 1, cit_step_add, RND) {
+    /*for (j = 0; j < LX1; j++) {*/
+      FOR_START(i, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        tmor[col][j] = tmor[col][j] + qbnew[0][j][i-1] *temp[col][i];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (col = 1; col < LX1; col++) {
     tmor[col][0] = tmor[col][0]+temp[col][0];
     for (j = 0; j < LX1; j++) {
@@ -748,6 +1549,7 @@ void transfb_nc1(double tmor[LX1][LX1], double tx[LX1][LX1])
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -759,9 +1561,89 @@ void transfb_c(double tx[])
 {
   const double third = 1.0/3.0;
   int il1, il2, il3, il4, ig1, ig2, ig3, ig4, ie, iface, col, j, ig, il;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6, *cit7;
+#endif // USE_CITERATOR
 
   r_init(tmort, nmor, 0.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+      if (cbc[ie][iface] != 3) {
+        il1 = idel[ie][iface][0][0];
+        il2 = idel[ie][iface][0][LX1-1];
+        il3 = idel[ie][iface][LX1-1][0];
+        il4 = idel[ie][iface][LX1-1][LX1-1];
+        ig1 = idmo[ie][iface][0][0][0][0];
+        ig2 = idmo[ie][iface][1][0][0][LX1-1];
+        ig3 = idmo[ie][iface][0][1][LX1-1][0];
+        ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
+
+        tmort[ig1] = tmort[ig1]+tx[il1]*third;
+        tmort[ig2] = tmort[ig2]+tx[il2]*third;
+        tmort[ig3] = tmort[ig3]+tx[il3]*third;
+        tmort[ig4] = tmort[ig4]+tx[il4]*third;
+
+        FOR_START(col, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (col = 1; col < LX1-1; col++) {*/
+          FOR_START(j, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][col][j];
+            ig = idmo[ie][iface][0][0][col][j];
+            tmort[ig] = tmort[ig]+tx[il];
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        if (idmo[ie][iface][0][0][0][LX1-1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][0][j];
+            ig = idmo[ie][iface][0][0][0][j];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][1][0][1][LX1-1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][LX1-1];
+            ig = idmo[ie][iface][0][0][j][LX1-1];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][0][1][LX1-1][1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][LX1-1][j];
+            ig = idmo[ie][iface][0][0][LX1-1][j];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][0][0][LX1-1][0] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][0];
+            ig = idmo[ie][iface][0][0][j][0];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+          }
+          FOR_END(cit3);
+        }
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       if (cbc[ie][iface] != 3) {
@@ -821,6 +1703,7 @@ void transfb_c(double tx[])
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
 
@@ -833,10 +1716,98 @@ void transfb_c_2(double tx[])
 {
   const double third = 1.0/3.0;
   int il1, il2, il3, il4, ig1, ig2, ig3, ig4, ie, iface, col, j, ig, il;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   r_init(tmort, nmor, 0.0);
   r_init(mormult, nmor, 0.0);
 
+#ifdef USE_CITERATOR
+  FOR_START(ie, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (ie = 0; ie < nelt; ie++) {*/
+    FOR_START(iface, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iface = 0; iface < NSIDES; iface++) {*/
+
+      if (cbc[ie][iface] != 3) {
+        il1 = idel[ie][iface][0][0];
+        il2 = idel[ie][iface][0][LX1-1];
+        il3 = idel[ie][iface][LX1-1][0];
+        il4 = idel[ie][iface][LX1-1][LX1-1];
+        ig1 = idmo[ie][iface][0][0][0][0];
+        ig2 = idmo[ie][iface][1][0][0][LX1-1];
+        ig3 = idmo[ie][iface][0][1][LX1-1][0];
+        ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
+
+        tmort[ig1] = tmort[ig1]+tx[il1]*third;
+        tmort[ig2] = tmort[ig2]+tx[il2]*third;
+        tmort[ig3] = tmort[ig3]+tx[il3]*third;
+        tmort[ig4] = tmort[ig4]+tx[il4]*third;
+        mormult[ig1] = mormult[ig1]+third;
+        mormult[ig2] = mormult[ig2]+third;
+        mormult[ig3] = mormult[ig3]+third;
+        mormult[ig4] = mormult[ig4]+third;
+
+        FOR_START(col, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+        /*for (col = 1; col < LX1-1; col++) {*/
+          FOR_START(j, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][col][j];
+            ig = idmo[ie][iface][0][0][col][j];
+            tmort[ig] = tmort[ig]+tx[il];
+            mormult[ig] = mormult[ig]+1.0;
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+        if (idmo[ie][iface][0][0][0][LX1-1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][0][j];
+            ig = idmo[ie][iface][0][0][0][j];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+            mormult[ig] = mormult[ig]+0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][1][0][1][LX1-1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][LX1-1];
+            ig = idmo[ie][iface][0][0][j][LX1-1];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+            mormult[ig] = mormult[ig]+0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][0][1][LX1-1][1] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][LX1-1][j];
+            ig = idmo[ie][iface][0][0][LX1-1][j];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+            mormult[ig] = mormult[ig]+0.5;
+          }
+          FOR_END(cit3);
+        }
+
+        if (idmo[ie][iface][0][0][LX1-1][0] == -1) {
+          FOR_START(j, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (j = 1; j < LX1-1; j++) {*/
+            il = idel[ie][iface][j][0];
+            ig = idmo[ie][iface][0][0][j][0];
+            tmort[ig] = tmort[ig]+tx[il]*0.5;
+            mormult[ig] = mormult[ig]+0.5;
+          }
+          FOR_END(cit3);
+        }
+      }
+    }
+  }
+#else
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
 
@@ -906,4 +1877,5 @@ void transfb_c_2(double tx[])
       }
     }
   }
+#endif // USE_CITERATOR
 }

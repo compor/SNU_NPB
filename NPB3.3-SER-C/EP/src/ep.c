@@ -48,6 +48,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+#define USE_CITERATOR
+
 #include "type.h"
 #include "npbparams.h"
 #include "randdp.h"
@@ -55,8 +57,6 @@
 #include "print_results.h"
 
 #include "adt_citerator.h"
-
-#define USE_CITERATOR
 
 #define MAX(X,Y)  (((X) > (Y)) ? (X) : (Y))
 
@@ -174,7 +174,7 @@ int main()
   k_offset = -1;
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, np, CIT_STEP1) {
+  FOR_START(k, cit1, 1, np+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= np; k++) {*/
 #else
   for (k = 1; k <= np; k++) {
@@ -186,7 +186,7 @@ int main()
     // Find starting seed t1 for this kk.
 
 #ifdef USE_CITERATOR
-    FOR_RND_START(i, cit2, 1, 100, CIT_STEP1) {
+    FOR_START(i, cit2, 1, 101, 1, cit_step_add, RND) {
     /*for (i = 1; i <= 100; i++) {*/
       ik = kk / 2;
       if ((2 * ik) != kk) t3 = randlc(&t1, t2);
@@ -194,7 +194,7 @@ int main()
       t3 = randlc(&t2, t2);
       kk = ik;
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 #else
     for (i = 1; i <= 100; i++) {
       ik = kk / 2;
@@ -220,7 +220,7 @@ int main()
     if (timers_enabled) timer_start(1);
 
 #ifdef USE_CITERATOR
-    FOR_RND_START(i, cit2, 0, NK-1, CIT_STEP1) {
+    FOR_START(i, cit2, 0, NK, 1, cit_step_add, RND) {
     /*for (i = 0; i < NK; i++) {*/
       x1 = 2.0 * x[2*i] - 1.0;
       x2 = 2.0 * x[2*i+1] - 1.0;
@@ -235,7 +235,7 @@ int main()
         sy   = sy + t4;
       }
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
 #else
     for (i = 0; i < NK; i++) {
       x1 = 2.0 * x[2*i] - 1.0;
@@ -256,16 +256,16 @@ int main()
     if (timers_enabled) timer_stop(1);
   }
 #ifdef USE_CITERATOR
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
 #endif // USE_CITERATOR
 
 #ifdef USE_CITERATOR
-  FOR_RND_START(i, cit1, 0, NQ-1, CIT_STEP1) {
+  FOR_START(i, cit1, 0, NQ, 1, cit_step_add, RND) {
   /*for (i = 0; i < NQ; i++) {*/
     gc = gc + q[i];
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (i = 0; i < NQ; i++) {
     gc = gc + q[i];

@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------
 // move element to proper location in morton space filling curve
@@ -39,12 +42,72 @@
 void move()
 {
   int i, iside, jface, iel, ntemp, ii1, ii2, n1, n2, cb;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   n2 = 2*6*nelt;
   n1 = n2*2;
   nr_init((int *)sje_new, n1, -1);
   nr_init((int *)ijel_new, n2, -1);
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    i = mt_to_id[iel];
+    treenew[iel] = tree[i];
+    copy(xc_new[iel], xc[i], 8);
+    copy(yc_new[iel], yc[i], 8);
+    copy(zc_new[iel], zc[i], 8);
+
+    FOR_START(iside, cit2, 0, NSIDES, 1, cit_step_add, RND) {
+    /*for (iside = 0; iside < NSIDES; iside++) {*/
+      jface = jjface[iside];
+      cb = cbc[i][iside];
+      xc_new[iel][iside] = xc[i][iside];
+      yc_new[iel][iside] = yc[i][iside];
+      zc_new[iel][iside] = zc[i][iside];
+      cbc_new[iel][iside] = cb;
+
+      if (cb == 2) {
+        ntemp = sje[i][iside][0][0];
+        ijel_new[iel][iside][0] = 0;
+        ijel_new[iel][iside][1] = 0;
+        sje_new[iel][iside][0][0] = id_to_mt[ntemp];
+
+      } else if (cb == 1) {
+        ntemp = sje[i][iside][0][0];
+        ijel_new[iel][iside][0] = ijel[i][iside][0];
+        ijel_new[iel][iside][1] = ijel[i][iside][1];
+        sje_new[iel][iside][0][0] = id_to_mt[ntemp];
+
+      } else if (cb == 3) {
+        FOR_START(ii2, cit3, 0, 2, 1, cit_step_add, RND) {
+        /*for (ii2 = 0; ii2 < 2; ii2++) {*/
+          FOR_START(ii1, cit4, 0, 2, 1, cit_step_add, RND) {
+          /*for (ii1 = 0; ii1 < 2; ii1++) {*/
+            ntemp = sje[i][iside][ii2][ii1];
+            ijel_new[iel][iside][0] = 0;
+            ijel_new[iel][iside][1] = 0;
+            sje_new[iel][iside][ii2][ii1] = id_to_mt[ntemp];
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+
+      } else if (cb == 0) {
+        sje_new[iel][iside][0][0] = -1;
+        sje_new[iel][iside][1][0] = -1;
+        sje_new[iel][iside][0][1] = -1;
+        sje_new[iel][iside][1][1] = -1;
+      }
+    }
+    FOR_END(cit2);
+
+    copy(ta2[iel][0][0], ta1[i][0][0], NXYZ);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     i = mt_to_id[iel];
     treenew[iel] = tree[i];
@@ -87,11 +150,12 @@ void move()
         sje_new[iel][iside][1][0] = -1;
         sje_new[iel][iside][0][1] = -1;
         sje_new[iel][iside][1][1] = -1;
-      } 
+      }
     }
 
     copy(ta2[iel][0][0], ta1[i][0][0], NXYZ);
   }
+#endif // USE_CITERATOR
 
   copy((double *)xc, (double *)xc_new, 8*nelt);
   copy((double *)yc, (double *)yc_new, 8*nelt);
@@ -102,8 +166,17 @@ void move()
   ncopy((int *)tree, (int *)treenew, nelt);
   copy((double *)ta1, (double *)ta2, NXYZ*nelt);
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    mt_to_id[iel] = iel;
+    id_to_mt[iel] = iel;
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     mt_to_id[iel] = iel;
     id_to_mt[iel] = iel;
   }
+#endif // USE_CITERATOR
 }

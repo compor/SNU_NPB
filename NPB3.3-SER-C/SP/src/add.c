@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
 // addition of update to the vector u
@@ -39,8 +42,30 @@
 void add()
 {
   int i, j, k, m;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
+#endif // USE_CITERATOR
 
   if (timeron) timer_start(t_add);
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 1, nz2+1, 1, cit_step_add, RND) {
+  /*for (k = 1; k <= nz2; k++) {*/
+    FOR_START(j, cit2, 1, ny2+1, 1, cit_step_add, RND) {
+    /*for (j = 1; j <= ny2; j++) {*/
+      FOR_START(i, cit3, 1, nx2+1, 1, cit_step_add, RND) {
+      /*for (i = 1; i <= nx2; i++) {*/
+        FOR_START(m, cit4, 0, 5, 1, cit_step_add, RND) {
+        /*for (m = 0; m < 5; m++) {*/
+          u[k][j][i][m] = u[k][j][i][m] + rhs[k][j][i][m];
+        }
+        FOR_END(cit4);
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
@@ -50,5 +75,6 @@ void add()
       }
     }
   }
+#endif // USE_CITERATOR
   if (timeron) timer_stop(t_add);
 }

@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "applu.incl"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 //---------------------------------------------------------------------
 // set the boundary values of dependent variables
@@ -43,10 +46,31 @@ void setbv()
   //---------------------------------------------------------------------
   int i, j, k, m;
   double temp1[5], temp2[5];
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3;
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // set the dependent variable values along the top and bottom faces
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(j, cit1, 0, ny, 1, cit_step_add, RND) {
+  /*for (j = 0; j < ny; j++) {*/
+    FOR_START(i, cit2, 0, nx, 1, cit_step_add, RND) {
+    /*for (i = 0; i < nx; i++) {*/
+      exact( i, j, 0, temp1 );
+      exact( i, j, nz-1, temp2 );
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
+      /*for (m = 0; m < 5; m++) {*/
+        u[0][j][i][m] = temp1[m];
+        u[nz-1][j][i][m] = temp2[m];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (j = 0; j < ny; j++) {
     for (i = 0; i < nx; i++) {
       exact( i, j, 0, temp1 );
@@ -57,10 +81,29 @@ void setbv()
       }
     }
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // set the dependent variable values along north and south faces
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, nz, 1, cit_step_add, RND) {
+  /*for (k = 0; k < nz; k++) {*/
+    FOR_START(i, cit2, 0, nx, 1, cit_step_add, RND) {
+    /*for (i = 0; i < nx; i++) {*/
+      exact( i, 0, k, temp1 );
+      exact( i, ny-1, k, temp2 );
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
+      /*for (m = 0; m < 5; m++) {*/
+        u[k][0][i][m] = temp1[m];
+        u[k][ny-1][i][m] = temp2[m];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < nz; k++) {
     for (i = 0; i < nx; i++) {
       exact( i, 0, k, temp1 );
@@ -71,10 +114,29 @@ void setbv()
       }
     }
   }
+#endif // USE_CITERATOR
 
   //---------------------------------------------------------------------
   // set the dependent variable values along east and west faces
   //---------------------------------------------------------------------
+#ifdef USE_CITERATOR
+  FOR_START(k, cit1, 0, nz, 1, cit_step_add, RND) {
+  /*for (k = 0; k < nz; k++) {*/
+    FOR_START(j, cit2, 0, ny, 1, cit_step_add, RND) {
+    /*for (j = 0; j < ny; j++) {*/
+      exact( 0, j, k, temp1 );
+      exact( nx-1, j, k, temp2 );
+      FOR_START(m, cit3, 0, 5, 1, cit_step_add, RND) {
+      /*for (m = 0; m < 5; m++) {*/
+        u[k][j][0][m] = temp1[m];
+        u[k][j][nx-1][m] = temp2[m];
+      }
+      FOR_END(cit3);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (k = 0; k < nz; k++) {
     for (j = 0; j < ny; j++) {
       exact( 0, j, k, temp1 );
@@ -85,5 +147,6 @@ void setbv()
       }
     }
   }
+#endif // USE_CITERATOR
 }
 

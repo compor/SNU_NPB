@@ -75,11 +75,11 @@ void x_solve()
   // determine a (labeled f) and n jacobians
   //---------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  FOR_RND_START(k, cit1, 1, grid_points[2]-2, CIT_STEP1) {
+  FOR_START(k, cit1, 1, grid_points[2]-2+1, 1, cit_step_add, RND) {
   /*for (k = 1; k <= grid_points[2]-2; k++) {*/
-    FOR_RND_START(j, cit2, 1, grid_points[1]-2, CIT_STEP1) {
+    FOR_START(j, cit2, 1, grid_points[1]-2+1, 1, cit_step_add, RND) {
     /*for (j = 1; j <= grid_points[1]-2; j++) {*/
-      FOR_RND_START(i, cit3, 0, isize, CIT_STEP1) {
+      FOR_START(i, cit3, 0, isize+1, 1, cit_step_add, RND) {
       /*for (i = 0; i <= isize; i++) {*/
         tmp1 = rho_i[k][j][i];
         tmp2 = tmp1 * tmp1;
@@ -156,12 +156,12 @@ void x_solve()
         njac[i][3][4] = ( c3c4 - c1345 ) * tmp2 * u[k][j][i][3];
         njac[i][4][4] = ( c1345 ) * tmp1;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
       //---------------------------------------------------------------------
       // now jacobians set, so form left hand side in x direction
       //---------------------------------------------------------------------
       lhsinit(lhs, isize);
-      FOR_RND_START(i, cit3, 1, isize - 1, CIT_STEP1) {
+      FOR_START(i, cit3, 1, isize - 1+1, 1, cit_step_add, RND) {
       /*for (i = 1; i <= isize-1; i++) {*/
         tmp1 = dt * tx1;
         tmp2 = dt * tx2;
@@ -326,7 +326,7 @@ void x_solve()
           - tmp1 * njac[i+1][4][4]
           - tmp1 * dx5;
       }
-      FOR_RND_END(cit3);
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       //---------------------------------------------------------------------
@@ -355,7 +355,7 @@ void x_solve()
       // begin inner most do loop
       // do all the elements of the cell unless last
       //---------------------------------------------------------------------
-      /*FOR_START(i, cit3, 1, isize - 1, CIT_STEP1, FWD) {*/
+      /*FOR_START(i, cit3, 1, isize - 1+1, 1, cit_step_add, FWD) {*/
       for (i = 1; i <= isize-1; i++) {
         //-------------------------------------------------------------------
         // rhs(i) = rhs(i) - A*rhs(i-1)
@@ -397,24 +397,24 @@ void x_solve()
       // so just use it
       // after u(istart) will be sent to next cell
       //---------------------------------------------------------------------
-      FOR_START(i, cit3, isize - 1, 0, cit_dec1, FWD) {
+      FOR_START(i, cit3, isize - 1, -1, -1, cit_step_add, FWD) {
       /*for (i = isize-1; i >=0; i--) {*/
-        FOR_RND_START(m, cit4, 0, BLOCK_SIZE - 1, CIT_STEP1) {
+        FOR_START(m, cit4, 0, BLOCK_SIZE - 1+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < BLOCK_SIZE; m++) {*/
-          FOR_RND_START(n, cit5, 0, BLOCK_SIZE - 1, CIT_STEP1) {
+          FOR_START(n, cit5, 0, BLOCK_SIZE - 1+1, 1, cit_step_add, RND) {
           /*for (n = 0; n < BLOCK_SIZE; n++) {*/
             rhs[k][j][i][m] = rhs[k][j][i][m]
               - lhs[i][CC][n][m]*rhs[k][j][i+1][n];
           }
-          FOR_RND_END(cit5);
+          FOR_END(cit5);
         }
-        FOR_RND_END(cit4);
+        FOR_END(cit4);
       }
       FOR_END(cit3);
     }
-    FOR_RND_END(cit2);
+    FOR_END(cit2);
   }
-  FOR_RND_END(cit1);
+  FOR_END(cit1);
 #else
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {

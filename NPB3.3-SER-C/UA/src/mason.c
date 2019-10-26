@@ -32,6 +32,9 @@
 //-------------------------------------------------------------------------//
 
 #include "header.h"
+#include "adt_citerator.h"
+
+#define USE_CITERATOR
 
 static void get_emo(int ie, int n, int ng);
 static void mor_assign(int mor_v[3], int *count);
@@ -45,7 +48,7 @@ static void mor_ne(int mor_v[3], int nn, int edge, int face,
 
 
 //-----------------------------------------------------------------
-// generate mortar point index number 
+// generate mortar point index number
 //-----------------------------------------------------------------
 void mortar()
 {
@@ -53,6 +56,9 @@ void mortar()
   int iii, jjj, face2, ne, ie, edge_g, ie2;
   int mor_v[3], cb, cb1, cb2, cb3, cb4, cb5, cb6;
   int space, sumcb, ij1, ij2, n1, n2, n3, n4, n5;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6;
+#endif // USE_CITERATOR
 
   n1 = LX1*LX1*6*4*nelt;
   nr_init((int *)idmo, n1, -1);
@@ -70,19 +76,21 @@ void mortar()
   n5 = 2*12*nelt;
   nr_init((int *)diagn, n5, -1) ;
 
-  // Mortar points indices are generated in two steps: first generate 
-  // them for all element vertices (corner points), then for conforming 
-  // edge and conforming face interiors. Each time a new mortar index 
-  // is generated for a mortar point, it is broadcast to all elements 
-  // sharing this mortar point. 
+  // Mortar points indices are generated in two steps: first generate
+  // them for all element vertices (corner points), then for conforming
+  // edge and conforming face interiors. Each time a new mortar index
+  // is generated for a mortar point, it is broadcast to all elements
+  // sharing this mortar point.
 
   // VERTICES
   count = -1;
 
   // assign mortar point indices to element vertices
-  for (iel = 0; iel < nelt; iel++) {
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
 
-    // first calculate how many new mortar indices will be generated for 
+    // first calculate how many new mortar indices will be generated for
     // each element.
 
     // For each element, at least one vertex (vertex 7) will be new mortar
@@ -100,8 +108,8 @@ void mortar()
     //        1 for type 2 or 3
     //        2 for type 0
     //        5 for type 1
-    // By summing these integers for faces 1,3 and 5, sumcb will have 
-    // 10 different numbers indicating 10 different combinations. 
+    // By summing these integers for faces 1,3 and 5, sumcb will have
+    // 10 different numbers indicating 10 different combinations.
 
     sumcb = 0;
     if (cb == 2 || cb == 3) {
@@ -129,7 +137,7 @@ void mortar()
     // compute newc[iel]
     // newc[iel] records how many new mortar indices will be generated
     //           for element iel
-    // vassign[iel][i] records the element vertex of the i'th new mortar 
+    // vassign[iel][i] records the element vertex of the i'th new mortar
     //           vertex point for element iel. e.g. vassign[iel][1]=8 means
     //           the 2nd new mortar vertex point generated on element
     //           iel is iel's 8th vertex.
@@ -140,7 +148,7 @@ void mortar()
       vassign[iel][0] = 7;
 
     } else if (sumcb == 4) {
-      // the three face types for face 1,3 and 5 are 2 2 0 (not 
+      // the three face types for face 1,3 and 5 are 2 2 0 (not
       // necessarily in this order)
       newc[iel] = 2;
       if (cb == 0) {
@@ -153,7 +161,7 @@ void mortar()
       vassign[iel][1] = 7;
 
     } else if (sumcb == 7) {
-      // the three face types for face 1,3 and 5 are 2 2 1 (not 
+      // the three face types for face 1,3 and 5 are 2 2 1 (not
       // necessarily in this order)
       if (cb == 1) {
         ij1 = ijel[iel][5][0];
@@ -253,7 +261,7 @@ void mortar()
       }
 
     } else if (sumcb == 5) {
-      // the three face types for face 1,3 and 5 are 2/3 0 0 (not 
+      // the three face types for face 1,3 and 5 are 2/3 0 0 (not
       // necessarily in this order)
       newc[iel] = 4;
       if (cb == 2 || cb == 3) {
@@ -274,7 +282,7 @@ void mortar()
       }
 
     } else if (sumcb == 8) {
-      // the three face types for face 1,3 and 5 are 2 0 1 (not 
+      // the three face types for face 1,3 and 5 are 2 0 1 (not
       // necessarily in this order)
 
       // if face 2 of type 1
@@ -425,7 +433,7 @@ void mortar()
               vassign[iel][2] = 7;
             }
           }
-        } else { 
+        } else {
           if (ijel[iel][1][1] == 0) {
             newc[iel] = 4;
             vassign[iel][0] = 2;
@@ -449,7 +457,7 @@ void mortar()
       }
 
     } else if (sumcb == 11) {
-      // the three face type for face 2,4 and 6 are 2 1 1(not 
+      // the three face type for face 2,4 and 6 are 2 1 1(not
       // necessarily in this order)
       if (cb == 2 || cb == 3) {
         if (ijel[iel][3][0] == 0) {
@@ -581,7 +589,7 @@ void mortar()
       }
 
     } else if (sumcb == 6) {
-      // the three face type for face 1,3 and 5 are 0 0 0(not 
+      // the three face type for face 1,3 and 5 are 0 0 0(not
       // necessarily in this order)
       newc[iel] = 8;
       vassign[iel][0] = 0;
@@ -594,7 +602,7 @@ void mortar()
       vassign[iel][7] = 7;
 
     } else if (sumcb == 9) {
-      // the three face type for face 1,3 and 5 are 0 0 1(not 
+      // the three face type for face 1,3 and 5 are 0 0 1(not
       // necessarily in this order)
       newc[iel] = 7;
       vassign[iel][0] = 1;
@@ -606,7 +614,7 @@ void mortar()
       vassign[iel][6] = 7;
 
     } else if (sumcb == 12) {
-      // the three face type for face 1,3 and 5 are 0 1 1(not 
+      // the three face type for face 1,3 and 5 are 0 1 1(not
       // necessarily in this order)
       if (cb == 0) {
         ntemp = sje[iel][1][0][0];
@@ -660,7 +668,7 @@ void mortar()
       }
 
     } else if (sumcb == 15) {
-      // the three face type for face 1,3 and 5 are 1 1 1(not 
+      // the three face type for face 1,3 and 5 are 1 1 1(not
       // necessarily in this order)
       ntemp = sje[iel][3][0][0];
       ntemp1 = sje[iel][1][0][0];
@@ -728,9 +736,9 @@ void mortar()
 
           } else {
             newc[iel] = 7;
-            vassign[iel][0] = 1; 
-            vassign[iel][1] = 2; 
-            vassign[iel][2] = 3; 
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 2;
+            vassign[iel][2] = 3;
             vassign[iel][3] = 4;
             vassign[iel][4] = 5;
             vassign[iel][5] = 6;
@@ -740,11 +748,674 @@ void mortar()
       }
     }
   }
+  FOR_END(cit1);
+#else
+  for (iel = 0; iel < nelt; iel++) {
+
+    // first calculate how many new mortar indices will be generated for
+    // each element.
+
+    // For each element, at least one vertex (vertex 7) will be new mortar
+    // point. All possible new mortar points will be on face 1,3 or 5. By
+    // checking the type of these three faces, we are able to tell
+    // how many new mortar vertex points will be generated in each element.
+
+    cb = cbc[iel][5];
+    cb1 = cbc[iel][3];
+    cb2 = cbc[iel][1];
+
+    // For different combinations of the type of these three faces,
+    // we group them into 27 configurations.
+    // For different face types we assign the following integers:
+    //        1 for type 2 or 3
+    //        2 for type 0
+    //        5 for type 1
+    // By summing these integers for faces 1,3 and 5, sumcb will have
+    // 10 different numbers indicating 10 different combinations.
+
+    sumcb = 0;
+    if (cb == 2 || cb == 3) {
+      sumcb = sumcb+1;
+    } else if (cb == 0) {
+      sumcb = sumcb+2;
+    } else if (cb == 1) {
+      sumcb = sumcb+5;
+    }
+    if (cb1 == 2 || cb1 == 3) {
+      sumcb = sumcb+1;
+    } else if (cb1 == 0) {
+      sumcb = sumcb+2;
+    } else if (cb1 == 1) {
+      sumcb = sumcb+5;
+    }
+    if (cb2 == 2 || cb2 == 3) {
+      sumcb = sumcb+1;
+    } else if (cb2 == 0) {
+      sumcb = sumcb+2;
+    } else if (cb2 == 1) {
+      sumcb = sumcb+5;
+    }
+
+    // compute newc[iel]
+    // newc[iel] records how many new mortar indices will be generated
+    //           for element iel
+    // vassign[iel][i] records the element vertex of the i'th new mortar
+    //           vertex point for element iel. e.g. vassign[iel][1]=8 means
+    //           the 2nd new mortar vertex point generated on element
+    //           iel is iel's 8th vertex.
+
+    if (sumcb == 3) {
+      // the three face types for face 1,3, and 5 are 2 2 2
+      newc[iel] = 1;
+      vassign[iel][0] = 7;
+
+    } else if (sumcb == 4) {
+      // the three face types for face 1,3 and 5 are 2 2 0 (not
+      // necessarily in this order)
+      newc[iel] = 2;
+      if (cb == 0) {
+        vassign[iel][0] = 3;
+      } else if (cb1 == 0) {
+        vassign[iel][0] = 5;
+      } else if (cb2 == 0) {
+        vassign[iel][0] = 6;
+      }
+      vassign[iel][1] = 7;
+
+    } else if (sumcb == 7) {
+      // the three face types for face 1,3 and 5 are 2 2 1 (not
+      // necessarily in this order)
+      if (cb == 1) {
+        ij1 = ijel[iel][5][0];
+        ij2 = ijel[iel][5][1];
+        if (ij1 == 0 && ij2 == 0) {
+          newc[iel] = 2;
+          vassign[iel][0] = 3;
+          vassign[iel][1] = 7;
+        } else if (ij1 == 0 && ij2 == 1) {
+          ntemp = sje[iel][5][0][0];
+          if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 7;
+          }
+        } else if (ij1 == 1 && ij2 == 0) {
+          ntemp = sje[iel][5][0][0];
+          if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 7;
+          }
+        } else {
+          newc[iel] = 1;
+          vassign[iel][0] = 7;
+        }
+      } else if (cb1 == 1) {
+        ij1 = ijel[iel][3][0];
+        ij2 = ijel[iel][3][1];
+        if (ij1 == 0 && ij2 == 0) {
+          newc[iel] = 2;
+          vassign[iel][0] = 5;
+          vassign[iel][1] = 7;
+        } else if (ij1 == 0 && ij2 == 1) {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 5;
+            vassign[iel][1] = 7;
+          }
+        } else if (ij1 == 1 && ij2 == 0) {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 5;
+            vassign[iel][1] = 7;
+          }
+        } else {
+          newc[iel] = 1;
+          vassign[iel][0] = 7;
+        }
+
+      } else if (cb2 == 1) {
+        ij1 = ijel[iel][1][0];
+        ij2 = ijel[iel][1][1];
+        if (ij1 == 0 && ij2 == 0) {
+          newc[iel] = 2;
+          vassign[iel][0] = 6;
+          vassign[iel][1] = 7;
+        } else if (ij1 == 0 && ij2 == 1) {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 6;
+            vassign[iel][1] = 7;
+          }
+
+        } else if (ij1 == 1 && ij2 == 0) {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+            newc[iel] = 1;
+            vassign[iel][0] = 7;
+          } else {
+            newc[iel] = 2;
+            vassign[iel][0] = 6;
+            vassign[iel][1] = 7;
+          }
+        } else {
+          newc[iel] = 1;
+          vassign[iel][0] = 7;
+        }
+      }
+
+    } else if (sumcb == 5) {
+      // the three face types for face 1,3 and 5 are 2/3 0 0 (not
+      // necessarily in this order)
+      newc[iel] = 4;
+      if (cb == 2 || cb == 3) {
+        vassign[iel][0] = 4;
+        vassign[iel][1] = 5;
+        vassign[iel][2] = 6;
+        vassign[iel][3] = 7;
+      } else if (cb1 == 2 || cb1 == 3) {
+        vassign[iel][0] = 2;
+        vassign[iel][1] = 3;
+        vassign[iel][2] = 6;
+        vassign[iel][3] = 7;
+      } else if (cb2 == 2 || cb2 == 3) {
+        vassign[iel][0] = 1;
+        vassign[iel][1] = 3;
+        vassign[iel][2] = 5;
+        vassign[iel][3] = 7;
+      }
+
+    } else if (sumcb == 8) {
+      // the three face types for face 1,3 and 5 are 2 0 1 (not
+      // necessarily in this order)
+
+      // if face 2 of type 1
+      if (cb == 1) {
+        if (cb1 == 2 || cb1 == 3) {
+          ij1 = ijel[iel][5][0];
+          if (ij1 == 0) {
+            newc[iel] = 4;
+            vassign[iel][0] = 2;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          } else {
+            ntemp = sje[iel][5][0][0];
+            if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 6;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+
+        } else if (cb2 == 2 || cb2 == 3) {
+          if (ijel[iel][5][1] == 0) {
+            newc[iel] = 4;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 7;
+          } else {
+            ntemp = sje[iel][5][0][0];
+            if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 5;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+
+        // if face 4 of type 1
+      } else if (cb1 == 1) {
+        if (cb == 2 || cb == 3) {
+          ij1 = ijel[iel][3][0];
+          ij2 = ijel[iel][3][1];
+
+          if (ij1 == 0 && ij2 == 0) {
+            ntemp = sje[iel][3][0][0];
+            if (cbc[ntemp][1] == 3 && sje[ntemp][1][0][0] < iel) {
+              newc[iel] = 3;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            } else {
+              newc[iel] = 4;
+              vassign[iel][0] = 4;
+              vassign[iel][1] = 5;
+              vassign[iel][2] = 6;
+              vassign[iel][3] = 7;
+            }
+          } else if (ij1 == 0 && ij2 == 1) {
+            ntemp = sje[iel][3][0][0];
+            if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+              newc[iel] = 3;
+              vassign[iel][0] = 4;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            } else {
+              newc[iel] = 4;
+              vassign[iel][0] = 4;
+              vassign[iel][1] = 5;
+              vassign[iel][2] = 6;
+              vassign[iel][3] = 7;
+            }
+          } else if (ij1 == 1 && ij2 == 0) {
+            ntemp = sje[iel][3][0][0];
+            if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 6;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          } else if (ij1 == 1 && ij2 == 1) {
+            ntemp = sje[iel][3][0][0];
+            if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 6;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 4;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+        } else {
+          if (ijel[iel][3][1] == 0) {
+            newc[iel] = 4;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 7;
+          } else {
+            ntemp = sje[iel][3][0][0];
+            if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 5;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+        // if face 6 of type 1
+      } else if (cb2 == 1) {
+        if (cb == 2 || cb == 3) {
+          if (ijel[iel][1][0] == 0) {
+            newc[iel] = 4;
+            vassign[iel][0] = 4;
+            vassign[iel][1] = 5;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          } else {
+            ntemp = sje[iel][1][0][0];
+            if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+        } else {
+          if (ijel[iel][1][1] == 0) {
+            newc[iel] = 4;
+            vassign[iel][0] = 2;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          } else {
+            ntemp = sje[iel][1][0][0];
+            if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+      }
+
+    } else if (sumcb == 11) {
+      // the three face type for face 2,4 and 6 are 2 1 1(not
+      // necessarily in this order)
+      if (cb == 2 || cb == 3) {
+        if (ijel[iel][3][0] == 0) {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][1] == 3 && sje[ntemp][1][0][0] < iel) {
+            newc[iel] = 3;
+            vassign[iel][0] = 5;
+            vassign[iel][1] = 6;
+            vassign[iel][2] = 7;
+          } else {
+            newc[iel] = 4;
+            vassign[iel][0] = 4;
+            vassign[iel][1] = 5;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          }
+
+          // if ijel[iel][3][0]=1
+        } else {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] < iel) {
+            ntemp1 = sje[iel][3][0][0];
+            if (cbc[ntemp1][4] == 3 && sje[ntemp1][4][0][0] < iel) {
+              newc[iel] = 1;
+              vassign[iel][0] = 7;
+            } else {
+              newc[iel] = 2;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 7;
+            }
+          } else {
+            ntemp1 = sje[iel][3][0][0];
+            if (cbc[ntemp1][4] == 3 && sje[ntemp1][4][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 6;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+      } else if (cb1 == 2 || cb1 == 3) {
+        if (ijel[iel][1][1] == 0) {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] < iel) {
+            newc[iel] = 3;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 6;
+            vassign[iel][2] = 7;
+          } else {
+            newc[iel] = 4;
+            vassign[iel][0] = 2;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          }
+          // if ijel[iel][1][1]=1
+        } else {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] < iel) {
+            ntemp1 = sje[iel][5][0][0];
+            if (cbc[ntemp1][2] == 3 && sje[ntemp1][2][0][0] < iel) {
+              newc[iel] = 1;
+              vassign[iel][0] = 7;
+            } else {
+              newc[iel] = 2;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 7;
+            }
+          } else {
+            ntemp1 = sje[iel][5][0][0];
+            if (cbc[ntemp1][2] == 3 && sje[ntemp1][2][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 6;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 6;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+      } else if (cb2 == 2 || cb2 == 3) {
+        if (ijel[iel][5][1] == 0) {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] < iel) {
+            newc[iel] = 3;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 5;
+            vassign[iel][2] = 7;
+          } else {
+            newc[iel] = 4;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 7;
+          }
+          // if ijel[iel][5][1]=1
+        } else {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] < iel) {
+            ntemp1 = sje[iel][5][0][0];
+            if (cbc[ntemp1][0] == 3 && sje[ntemp1][0][0][0] < iel) {
+              newc[iel] = 1;
+              vassign[iel][0] = 7;
+            } else {
+              newc[iel] = 2;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 7;
+            }
+          } else {
+            ntemp1 = sje[iel][5][0][0];
+            if (cbc[ntemp1][0] == 3 && sje[ntemp1][0][0][0] < iel) {
+              newc[iel] = 2;
+              vassign[iel][0] = 5;
+              vassign[iel][1] = 7;
+            } else {
+              newc[iel] = 3;
+              vassign[iel][0] = 3;
+              vassign[iel][1] = 5;
+              vassign[iel][2] = 7;
+            }
+          }
+        }
+      }
+
+    } else if (sumcb == 6) {
+      // the three face type for face 1,3 and 5 are 0 0 0(not
+      // necessarily in this order)
+      newc[iel] = 8;
+      vassign[iel][0] = 0;
+      vassign[iel][1] = 1;
+      vassign[iel][2] = 2;
+      vassign[iel][3] = 3;
+      vassign[iel][4] = 4;
+      vassign[iel][5] = 5;
+      vassign[iel][6] = 6;
+      vassign[iel][7] = 7;
+
+    } else if (sumcb == 9) {
+      // the three face type for face 1,3 and 5 are 0 0 1(not
+      // necessarily in this order)
+      newc[iel] = 7;
+      vassign[iel][0] = 1;
+      vassign[iel][1] = 2;
+      vassign[iel][2] = 3;
+      vassign[iel][3] = 4;
+      vassign[iel][4] = 5;
+      vassign[iel][5] = 6;
+      vassign[iel][6] = 7;
+
+    } else if (sumcb == 12) {
+      // the three face type for face 1,3 and 5 are 0 1 1(not
+      // necessarily in this order)
+      if (cb == 0) {
+        ntemp = sje[iel][1][0][0];
+        if (cbc[ntemp][3] == 3 && sje[ntemp][3][0][0] < iel) {
+          newc[iel] = 6;
+          vassign[iel][0] = 1;
+          vassign[iel][1] = 2;
+          vassign[iel][2] = 3;
+          vassign[iel][3] = 5;
+          vassign[iel][4] = 6;
+          vassign[iel][5] = 7;
+        } else {
+          newc[iel] = 7;
+          vassign[iel][0] = 1;
+          vassign[iel][1] = 2;
+          vassign[iel][2] = 3;
+          vassign[iel][3] = 4;
+          vassign[iel][4] = 5;
+          vassign[iel][5] = 6;
+          vassign[iel][6] = 7;
+        }
+      } else if (cb1 == 0) {
+        newc[iel] = 7;
+        vassign[iel][0] = 1;
+        vassign[iel][1] = 2;
+        vassign[iel][2] = 3;
+        vassign[iel][3] = 4;
+        vassign[iel][4] = 5;
+        vassign[iel][5] = 6;
+        vassign[iel][6] = 7;
+      } else if (cb2 == 0) {
+        ntemp = sje[iel][3][0][0];
+        if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] < iel) {
+          newc[iel] = 6;
+          vassign[iel][0] = 2;
+          vassign[iel][1] = 3;
+          vassign[iel][2] = 4;
+          vassign[iel][3] = 5;
+          vassign[iel][4] = 6;
+          vassign[iel][5] = 7;
+        } else {
+          newc[iel] = 7;
+          vassign[iel][0] = 1;
+          vassign[iel][1] = 2;
+          vassign[iel][2] = 3;
+          vassign[iel][3] = 4;
+          vassign[iel][4] = 5;
+          vassign[iel][5] = 6;
+          vassign[iel][6] = 7;
+        }
+      }
+
+    } else if (sumcb == 15) {
+      // the three face type for face 1,3 and 5 are 1 1 1(not
+      // necessarily in this order)
+      ntemp = sje[iel][3][0][0];
+      ntemp1 = sje[iel][1][0][0];
+      if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] < iel) {
+        if (cbc[ntemp][1] == 3 && sje[ntemp][1][0][0] < iel) {
+          if (cbc[ntemp1][5] == 3 && sje[ntemp1][5][0][0] < iel) {
+            newc[iel] = 4;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 5;
+            vassign[iel][2] = 6;
+            vassign[iel][3] = 7;
+          } else {
+            newc[iel] = 5;
+            vassign[iel][0] = 2;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 6;
+            vassign[iel][4] = 7;
+          }
+        } else {
+          if (cbc[ntemp1][5] == 3 && sje[ntemp1][5][0][0] < iel) {
+            newc[iel] = 5;
+            vassign[iel][0] = 3;
+            vassign[iel][1] = 4;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 6;
+            vassign[iel][4] = 7;
+          } else {
+            newc[iel] = 6;
+            vassign[iel][0] = 2;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 4;
+            vassign[iel][3] = 5;
+            vassign[iel][4] = 6;
+            vassign[iel][5] = 7;
+          }
+        }
+      } else {
+        if (cbc[ntemp][1] == 3 && sje[ntemp][1][0][0] < iel) {
+          if (cbc[ntemp1][5] == 3 && sje[ntemp1][5][0][0] < iel) {
+            newc[iel] = 5;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 5;
+            vassign[iel][3] = 6;
+            vassign[iel][4] = 7;
+          } else {
+            newc[iel] = 6;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 2;
+            vassign[iel][2] = 3;
+            vassign[iel][3] = 5;
+            vassign[iel][4] = 6;
+            vassign[iel][5] = 7;
+          }
+        } else {
+          if (cbc[ntemp1][5] == 3 && sje[ntemp1][5][0][0] < iel) {
+            newc[iel] = 6;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 3;
+            vassign[iel][2] = 4;
+            vassign[iel][3] = 5;
+            vassign[iel][4] = 6;
+            vassign[iel][5] = 7;
+
+          } else {
+            newc[iel] = 7;
+            vassign[iel][0] = 1;
+            vassign[iel][1] = 2;
+            vassign[iel][2] = 3;
+            vassign[iel][3] = 4;
+            vassign[iel][4] = 5;
+            vassign[iel][5] = 6;
+            vassign[iel][6] = 7;
+          }
+        }
+      }
+    }
+  }
+#endif // USE_CITERATOR
 
   // end computing how many new mortar vertex points will be generated
   // on each element.
 
-  // Compute (potentially in parallel) front[iel], which records how many 
+  // Compute (potentially in parallel) front[iel], which records how many
   // new mortar point indices are to be generated from element 0 to iel.
   // front[iel]=newc[0]+newc[1]+...+newc[iel]
 
@@ -753,10 +1424,28 @@ void mortar()
   parallel_add(front);
 
   // On each element, generate new mortar point indices and assign them
-  // to all elements sharing this mortar point. Note, if a mortar point 
+  // to all elements sharing this mortar point. Note, if a mortar point
   // is shared by several elements, the mortar point index of it will only
-  // be generated on the element with the lowest element index. 
+  // be generated on the element with the lowest element index.
 
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, FWD) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    // compute the starting vertex mortar point index in element iel
+    front[iel] = front[iel]-newc[iel];
+
+    FOR_START(i, cit2, 0, newc[iel], 1, cit_step_add, RND) {
+    /*for (i = 0; i < newc[iel]; i++) {*/
+      // count is the new mortar index number, which will be assigned
+      // to a vertex of iel and broadcast to all other elements sharing
+      // this vertex point.
+      count = front[iel]+i;
+      mortar_vertex(vassign[iel][i], iel, count);
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     // compute the starting vertex mortar point index in element iel
     front[iel] = front[iel]-newc[iel];
@@ -769,6 +1458,7 @@ void mortar()
       mortar_vertex(vassign[iel][i], iel, count);
     }
   }
+#endif // USE_CITERATOR
 
   // nvertex records how many mortar indices are for element vertices.
   // It is used in the computation of the preconditioner.
@@ -780,15 +1470,15 @@ void mortar()
   // conforming edges and all conforming face interiors on each element
 
 
-  // eassign[iel][i]=true   indicates that the i'th edge on iel will 
-  //                        generate new mortar points. 
-  // ncon_edge[iel][i]=true indicates that the i'th edge on iel is 
+  // eassign[iel][i]=true   indicates that the i'th edge on iel will
+  //                        generate new mortar points.
+  // ncon_edge[iel][i]=true indicates that the i'th edge on iel is
   //                        nonconforming
   n1 = 12*nelt;
   l_init((logical *)ncon_edge, n1, false);
   l_init((logical *)eassign, n1, false);
 
-  // fassign[iel][i]=true indicates that the i'th face of iel will 
+  // fassign[iel][i]=true indicates that the i'th face of iel will
   //                      generate new mortar points
   n2 = 6*nelt;
   l_init((logical *)fassign, n2, false);
@@ -796,13 +1486,15 @@ void mortar()
   // newe records how many new edges are to be assigned
   // diagn[iel][n][0] records the element index of neighbor element of iel,
   //            that shares edge n of iel
-  // diagn[iel][n][1] records the neighbor element diagn[iel][n][0] shares 
+  // diagn[iel][n][1] records the neighbor element diagn[iel][n][0] shares
   //            which part of edge n of iel. diagn[iel][n][1]=0 refers to left
   //            or bottom half of the edge n, diagn[iel][n][1]=1 refers
   //            to the right or top part of edge n.
-  // if_1_edge[iel][n]=true indicates that the size of iel is smaller than 
+  // if_1_edge[iel][n]=true indicates that the size of iel is smaller than
   //            that of its neighbor connected, neighbored by edge n only
-  for (iel = 0; iel < nelt; iel++) {
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, FWD) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
     newc[iel] = 0;
     newe[iel] = 0;
     newi[iel] = 0;
@@ -848,7 +1540,7 @@ void mortar()
         ntemp = sje[iel][3][0][0];
 
         // if ntemp's face 6 is not noncoforming or the neighbor element
-        // of ntemp on face 6 has an element index larger than iel, the 
+        // of ntemp on face 6 has an element index larger than iel, the
         // edge shared by face 6 and 4 (edge 10) will generate new mortar
         // point indices.
         if (cbc[ntemp][5] != 3 || sje[ntemp][5][0][0] > iel) {
@@ -857,14 +1549,14 @@ void mortar()
           eassign[iel][10] = true;
           // if the face 6 of ntemp is of type 2
           if (cbc[ntemp][5] == 2) {
-            // The neighbor element of iel, neighbored by edge 10, is 
+            // The neighbor element of iel, neighbored by edge 10, is
             // sje[ntemp][5][0][0] (the neighbor element of ntemp on ntemp's
             // face 6).
             diagn[iel][10][0] = sje[ntemp][5][0][0];
             // The neighbor element of iel, neighbored by edge 10 shares
             // the ijel[iel][5][1] part of edge 10 of iel
             diagn[iel][10][1] = ijel[iel][5][1];
-            // edge 9 of element sje[ntemp][5][0][0] (the neighbor element of 
+            // edge 9 of element sje[ntemp][5][0][0] (the neighbor element of
             // ntemp on ntemp's face 6) is a nonconforming edge
             ncon_edge[sje[ntemp][5][0][0]][9] = true;
             // if_1_edge[iel][n]=true indicates that iel is of a smaller
@@ -987,7 +1679,7 @@ void mortar()
       if (cb2 == 0 || cb2 == 1) {
         newe[iel] = newe[iel]+1;
         eassign[iel][7] = true;
-      } 
+      }
 
     } else if (cb4 == 1) {
       if (cb1 == 2) {
@@ -1207,7 +1899,7 @@ void mortar()
           eassign[iel][1] = true;
           if (cbc[ntemp][2] == 2) {
             diagn[iel][1][0] = sje[ntemp][2][0][0];
-          } 
+          }
         }
       } else if (cb3 == 0 || cb3 == 1) {
         newe[iel] = newe[iel]+1;
@@ -1285,7 +1977,7 @@ void mortar()
           ntemp = sje[iel][2][0][0];
           if (cbc[ntemp][4] == 2) {
             diagn[iel][9][0] = sje[ntemp][4][0][0];
-          } 
+          }
         }
       }
     } else if (cb3 == 0) {
@@ -1337,9 +2029,547 @@ void mortar()
     // to be assigned to each element.
     newc[iel] = newe[iel]*3+newi[iel];
   }
+  FOR_END(cit1);
+#else
+  for (iel = 0; iel < nelt; iel++) {
+    newc[iel] = 0;
+    newe[iel] = 0;
+    newi[iel] = 0;
+    cb1 = cbc[iel][0];
+    cb2 = cbc[iel][1];
+    cb3 = cbc[iel][2];
+    cb4 = cbc[iel][3];
+    cb5 = cbc[iel][4];
+    cb6 = cbc[iel][5];
 
-  // Compute (potentially in parallel) front[iel], which records how 
-  // many new mortar point indices are to be assigned (to conforming 
+    // on face 6
+
+    if (cb6 == 0) {
+      if (cb4 == 0 || cb4 == 1) {
+        // if face 6 is of type 0 and face 4 is of type 0 or type 1, the edge
+        // shared by face 4 and 6 (edge 10) will generate new mortar point
+        // indices.
+        newe[iel] = newe[iel]+1;
+        eassign[iel][10] = true;
+      }
+      if (cb1 != 3) {
+        // if face 1 is of type 3, the edge shared by face 6 and 1 (edge 0)
+        // will generate new mortar points indices.
+        newe[iel] = newe[iel]+1;
+        eassign[iel][0] = true;
+      }
+      if (cb3 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][8] = true;
+      }
+      if (cb2 == 0 || cb2 == 1) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][4] = true;
+      }
+    } else if (cb6 == 1) {
+      if (cb4 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][10] = true;
+      } else if (cb4 == 1) {
+
+        // If face 6 and face 4 both are of type 1, ntemp is the neighbor
+        // element on face 4.
+        ntemp = sje[iel][3][0][0];
+
+        // if ntemp's face 6 is not noncoforming or the neighbor element
+        // of ntemp on face 6 has an element index larger than iel, the
+        // edge shared by face 6 and 4 (edge 10) will generate new mortar
+        // point indices.
+        if (cbc[ntemp][5] != 3 || sje[ntemp][5][0][0] > iel) {
+
+          newe[iel] = newe[iel]+1;
+          eassign[iel][10] = true;
+          // if the face 6 of ntemp is of type 2
+          if (cbc[ntemp][5] == 2) {
+            // The neighbor element of iel, neighbored by edge 10, is
+            // sje[ntemp][5][0][0] (the neighbor element of ntemp on ntemp's
+            // face 6).
+            diagn[iel][10][0] = sje[ntemp][5][0][0];
+            // The neighbor element of iel, neighbored by edge 10 shares
+            // the ijel[iel][5][1] part of edge 10 of iel
+            diagn[iel][10][1] = ijel[iel][5][1];
+            // edge 9 of element sje[ntemp][5][0][0] (the neighbor element of
+            // ntemp on ntemp's face 6) is a nonconforming edge
+            ncon_edge[sje[ntemp][5][0][0]][9] = true;
+            // if_1_edge[iel][n]=true indicates that iel is of a smaller
+            //size than its neighbor element, neighbored by edge n of iel only.
+            if_1_edge[iel][10] = true;
+          }
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] > iel) {
+            diagn[iel][10][0] = sje[ntemp][5][ijel[iel][5][1]][1];
+          }
+        }
+      }
+
+      if (cb1 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][0] = true;
+      } else if (cb1 == 1) {
+        ntemp = sje[iel][0][0][0];
+        if (cbc[ntemp][5] != 3 || sje[ntemp][5][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][0] = true;
+          if (cbc[ntemp][5] == 2) {
+            diagn[iel][0][0] = sje[ntemp][5][0][0];
+            diagn[iel][0][1] = ijel[iel][5][0];
+            ncon_edge[sje[ntemp][5][0][0]][6] = true;
+            if_1_edge[iel][0] = true;
+          }
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] > iel) {
+            diagn[iel][0][0] = sje[ntemp][5][0][ijel[iel][5][0]];
+          }
+        }
+      } else if (cb1 == 2) {
+        if (ijel[iel][5][1] == 1) {
+          ntemp = sje[iel][0][0][0];
+          if (cbc[ntemp][5] == 1) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][0] = true;
+            // if cbc[ntemp][5]=2
+          } else {
+            if (sje[ntemp][5][0][0] > iel) {
+              newe[iel] = newe[iel]+1;
+              eassign[iel][0] = true;
+              diagn[iel][0][0] = sje[ntemp][5][0][0];
+            }
+          }
+        } else {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][0] = true;
+        }
+      }
+
+      if (cb3 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][8] = true;
+      } else if (cb3 == 1) {
+        ntemp = sje[iel][2][0][0];
+        if (cbc[ntemp][5] != 3 || sje[ntemp][5][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][8] = true;
+          if (cbc[ntemp][5] == 2) {
+            diagn[iel][8][0] = sje[ntemp][5][0][0];
+            diagn[iel][8][1] = ijel[iel][5][1];
+            ncon_edge[sje[ntemp][5][0][0]][11] = true;
+            if_1_edge[iel][8] = true;
+          }
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] > iel) {
+            diagn[iel][8][0] = sje[ntemp][5][ijel[iel][5][1]][1];
+          }
+        }
+      } else if (cb3 == 2) {
+        if (ijel[iel][5][0] == 1) {
+          ntemp = sje[iel][2][0][0];
+          if (cbc[ntemp][5] == 1) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][8] = true;
+            // if cbc[ntemp][5]=2
+          } else {
+            if (sje[ntemp][5][0][0] > iel) {
+              newe[iel] = newe[iel]+1;
+              eassign[iel][8] = true;
+              diagn[iel][8][0] = sje[ntemp][5][0][0];
+            }
+          }
+        } else {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][8] = true;
+        }
+      }
+
+      if (cb2 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][4] = true;
+      } else if (cb2 == 1) {
+        ntemp = sje[iel][1][0][0];
+        if (cbc[ntemp][5] != 3 || sje[ntemp][5][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][4] = true;
+          if (cbc[ntemp][5] == 2) {
+            diagn[iel][4][0] = sje[ntemp][5][0][0];
+            diagn[iel][4][1] = ijel[iel][5][0];
+            ncon_edge[sje[ntemp][5][0][0]][2] = true;
+            if_1_edge[iel][4] = true;
+          }
+          if (cbc[ntemp][5] == 3 && sje[ntemp][5][0][0] > iel) {
+            diagn[iel][8][0] = sje[ntemp][5][ijel[iel][5][1]][1];
+          }
+        }
+      }
+    }
+
+    // one face 4
+    if (cb4 == 0) {
+      if (cb1 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][3] = true;
+      }
+      if (cb5 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][11] = true;
+      }
+      if (cb2 == 0 || cb2 == 1) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][7] = true;
+      }
+
+    } else if (cb4 == 1) {
+      if (cb1 == 2) {
+        if (ijel[iel][3][1] == 0) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][3] = true;
+        } else {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][0] != 3 || sje[ntemp][0][0][0] > iel) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][3] = true;
+            if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] > iel) {
+              diagn[iel][3][0] = sje[ntemp][0][1][ijel[iel][3][0]];
+            }
+          }
+        }
+      } else if (cb1 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][3] = true;
+      } else if (cb1 == 1) {
+        ntemp = sje[iel][3][0][0];
+        if (cbc[ntemp][0] != 3 || sje[ntemp][0][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][3] = true;
+          if (cbc[ntemp][0] == 2) {
+            diagn[iel][3][0] = sje[ntemp][0][0][0];
+            diagn[iel][3][1] = ijel[iel][3][0];
+            ncon_edge[sje[ntemp][0][0][0]][5] = true;
+            if_1_edge[iel][3] = true;
+          }
+          if (cbc[ntemp][0] == 3 && sje[ntemp][0][0][0] > iel) {
+            diagn[iel][3][0] = sje[ntemp][0][1][ijel[iel][3][0]];
+          }
+        }
+      }
+      if (cb5 == 2) {
+        if (ijel[iel][3][0] == 0) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][11] = true;
+        } else {
+          ntemp = sje[iel][3][0][0];
+          if (cbc[ntemp][4] != 3 || sje[ntemp][4][0][0] > iel) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][11] = true;
+            if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] > iel) {
+              diagn[iel][11][0] = sje[ntemp][4][ijel[iel][3][1]][1];
+            }
+          }
+        }
+      } else if (cb5 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][11] = true;
+      } else if (cb5 == 1) {
+        ntemp = sje[iel][3][0][0];
+        if (cbc[ntemp][4] != 3 || sje[ntemp][4][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][11] = true;
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][11][0] = sje[ntemp][4][0][0];
+            diagn[iel][11][1] = ijel[iel][3][1];
+            ncon_edge[sje[ntemp][4][0][0]][8] = true;
+            if_1_edge[iel][11] = true;
+          }
+          if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] > iel) {
+            diagn[iel][11][0] = sje[ntemp][4][ijel[iel][3][1]][1];
+          }
+        }
+      }
+      if (cb2 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][7] = true;
+      } else if (cb2 == 1) {
+        ntemp = sje[iel][3][0][0];
+        if (cbc[ntemp][1] != 3 || sje[ntemp][1][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][7] = true;
+          if (cbc[ntemp][1] == 2) {
+            diagn[iel][7][0] = sje[ntemp][1][0][0];
+            diagn[iel][7][1] = ijel[iel][3][0];
+            ncon_edge[sje[ntemp][1][0][0]][1] = true;
+            if_1_edge[iel][7] = true;
+          }
+          if (cbc[ntemp][1] == 3 && sje[ntemp][1][0][0] > iel) {
+            diagn[iel][7][0] = sje[ntemp][2][1][ijel[iel][3][0]];
+          }
+        }
+      }
+    }
+
+    // on face 2
+    if (cb2 == 0) {
+      if (cb3 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][5] = true;
+      }
+      if (cb5 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][6] = true;
+      }
+    } else if (cb2 == 1) {
+      if (cb3 == 2) {
+        if (ijel[iel][1][1] == 0) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][5] = true;
+        } else {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][2] != 3 || sje[ntemp][2][0][0] > iel) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][5] = true;
+            if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] > iel) {
+              diagn[iel][5][0] = sje[ntemp][2][1][ijel[iel][1][0]];
+            }
+          }
+        }
+      } else if (cb3 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][5] = true;
+      } else if (cb3 == 1) {
+        ntemp = sje[iel][1][0][0];
+        if (cbc[ntemp][2] != 3 || sje[ntemp][2][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][5] = true;
+          if (cbc[ntemp][2] == 2) {
+            diagn[iel][5][0] = sje[ntemp][2][0][0];
+            diagn[iel][5][1] = ijel[iel][1][0];
+            ncon_edge[sje[ntemp][2][0][0]][3] = true;
+            if_1_edge[iel][5] = true;
+          }
+          if (cbc[ntemp][2] == 3 && sje[ntemp][2][0][0] > iel) {
+            diagn[iel][5][0] = sje[ntemp][2][1][ijel[iel][3][0]];
+          }
+        }
+      }
+      if (cb5 == 2) {
+        if (ijel[iel][1][0] == 0) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][6] = true;
+        } else {
+          ntemp = sje[iel][1][0][0];
+          if (cbc[ntemp][4] != 3 || sje[ntemp][4][0][0] > iel) {
+            newe[iel] = newe[iel]+1;
+            eassign[iel][6] = true;
+            if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] > iel) {
+              diagn[iel][6][0] = sje[ntemp][4][1][ijel[iel][1][1]];
+            }
+          }
+        }
+      } else if (cb5 == 0) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][6] = true;
+      } else if (cb5 == 1) {
+        ntemp = sje[iel][1][0][0];
+        if (cbc[ntemp][4] != 3 || sje[ntemp][4][0][0] > iel) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][6] = true;
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][6][0] = sje[ntemp][4][0][0];
+            diagn[iel][6][1] = ijel[iel][1][1];
+            ncon_edge[sje[ntemp][4][0][0]][0] = true;
+            if_1_edge[iel][6] = true;
+          }
+          if (cbc[ntemp][4] == 3 && sje[ntemp][4][0][0] > iel) {
+            diagn[iel][6][0] = sje[ntemp][4][ijel[iel][3][1]][1];
+          }
+        }
+      }
+    }
+
+    // on face 1
+    if (cb1 == 1) {
+      newe[iel] = newe[iel]+2;
+      eassign[iel][1] = true;
+      if (cb3 == 1) {
+        ntemp = sje[iel][0][0][0];
+        if (cbc[ntemp][2] == 2) {
+          diagn[iel][1][0] = sje[ntemp][2][0][0];
+          diagn[iel][1][1] = ijel[iel][0][0];
+          ncon_edge[sje[ntemp][2][0][0]][7] = true;
+          if_1_edge[iel][1] = true;
+        } else if (cbc[ntemp][2] == 3) {
+          diagn[iel][1][0] = sje[ntemp][2][0][ijel[iel][0][0]];
+        }
+      } else if (cb3 == 2) {
+        ntemp = sje[iel][2][0][0];
+        if (ijel[iel][0][1] == 1) {
+          if (cbc[ntemp][0] == 2) {
+            diagn[iel][1][0] = sje[ntemp][0][0][0];
+          }
+        }
+      }
+
+      eassign[iel][2] = true;
+      if (cb5 == 1) {
+        ntemp = sje[iel][0][0][0];
+        if (cbc[ntemp][4] == 2) {
+          diagn[iel][2][0] = sje[ntemp][4][0][0];
+          diagn[iel][2][1] = ijel[iel][0][1];
+          ncon_edge[sje[ntemp][4][0][0]][4] = true;
+          if_1_edge[iel][2] = true;
+        } else if (cbc[ntemp][4] == 3) {
+          diagn[iel][2][0] = sje[ntemp][4][0][ijel[iel][0][1]];
+        }
+      } else if (cb5 == 2) {
+        ntemp = sje[iel][4][0][0];
+        if (ijel[iel][0][0] == 1) {
+          if (cbc[ntemp][0] == 2) {
+            diagn[iel][2][0] = sje[ntemp][0][0][0];
+          }
+        }
+
+      }
+    } else if (cb1 == 2) {
+      if (cb3 == 2) {
+        ntemp = sje[iel][0][0][0];
+        if (cbc[ntemp][2] != 3) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][1] = true;
+          if (cbc[ntemp][2] == 2) {
+            diagn[iel][1][0] = sje[ntemp][2][0][0];
+          }
+        }
+      } else if (cb3 == 0 || cb3 == 1) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][1] = true;
+        if (cb3 == 1) {
+          ntemp = sje[iel][0][0][0];
+          if (cbc[ntemp][2] == 2) {
+            diagn[iel][1][0] = sje[ntemp][2][0][0];
+          }
+        }
+      }
+      if (cb5 == 2) {
+        ntemp = sje[iel][0][0][0];
+        if (cbc[ntemp][4] != 3) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][2] = true;
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][2][0] = sje[ntemp][4][0][0];
+          }
+        }
+      } else if (cb5 == 0 || cb5 == 1) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][2] = true;
+        if (cb5 == 1) {
+          ntemp = sje[iel][0][0][0];
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][2][0] = sje[ntemp][4][0][0];
+          }
+        }
+      }
+    } else if (cb1 == 0) {
+      if (cb3 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][1] = true;
+      }
+      if (cb5 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][2] = true;
+      }
+    }
+
+    // on face 3
+    if (cb3 == 1) {
+      newe[iel] = newe[iel]+1;
+      eassign[iel][9] = true;
+      if (cb5 == 1) {
+        ntemp = sje[iel][2][0][0];
+        if (cbc[ntemp][4] == 2) {
+          diagn[iel][9][0] = sje[ntemp][4][0][0];
+          diagn[iel][9][1] = ijel[iel][2][1];
+          ncon_edge[sje[ntemp][4][0][0]][10] = true;
+          if_1_edge[iel][9] = true;
+        }
+      }
+      if (ijel[iel][2][0] == 1) {
+        ntemp = sje[iel][2][0][0];
+        if (cbc[ntemp][4] == 3) {
+          diagn[iel][9][0] = sje[ntemp][4][ijel[iel][2][1]][0];
+        }
+      }
+    } else if (cb3 == 2) {
+      if (cb5 == 2) {
+        ntemp = sje[iel][2][0][0];
+        if (cbc[ntemp][4] != 3) {
+          newe[iel] = newe[iel]+1;
+          eassign[iel][9] = true;
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][9][0] = sje[ntemp][4][0][0];
+          }
+        }
+      } else if (cb5 == 0 || cb5 == 1) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][9] = true;
+        if (cb5 == 1) {
+          ntemp = sje[iel][2][0][0];
+          if (cbc[ntemp][4] == 2) {
+            diagn[iel][9][0] = sje[ntemp][4][0][0];
+          }
+        }
+      }
+    } else if (cb3 == 0) {
+      if (cb5 != 3) {
+        newe[iel] = newe[iel]+1;
+        eassign[iel][9] = true;
+      }
+    }
+
+    // CONFORMING FACE INTERIOR
+
+    // find how many new mortar point indices will be assigned
+    // to face interiors on all faces on each element
+
+    // newi record how many new face interior points will be assigned
+
+    // on face 6
+    if (cb6 == 1 || cb6 == 0) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][5] = true;
+    }
+    // on face 4
+    if (cb4 == 1 || cb4 == 0) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][3] = true;
+    }
+    // on face 2
+    if (cb2 == 1 || cb2 == 0) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][1] = true;
+    }
+    // on face 1
+    if (cb1 != 3) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][0] = true;
+    }
+    // on face 3
+    if (cb3 != 3) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][2] = true;
+    }
+    // on face 5
+    if (cb5 != 3) {
+      newi[iel] = newi[iel]+9;
+      fassign[iel][4] = true;
+    }
+
+    // newc is the total number of new mortar point indices
+    // to be assigned to each element.
+    newc[iel] = newe[iel]*3+newi[iel];
+  }
+#endif // USE_CITERATOR
+
+  // Compute (potentially in parallel) front[iel], which records how
+  // many new mortar point indices are to be assigned (to conforming
   // edges and conforming face interiors) from element 0 to iel.
   // front[iel]=newc[0]+newc[1]+...+newc[iel]
 
@@ -1350,13 +2580,16 @@ void mortar()
   // nmor is the total number or mortar points
   nmor = nvertex+front[nelt-1];
 
-  // Generate (potentially in parallel) new mortar point indices on 
-  // each conforming element face. On each face, first visit all 
+  // Generate (potentially in parallel) new mortar point indices on
+  // each conforming element face. On each face, first visit all
   // conforming edges, and then the face interior.
-  for (iel = 0; iel < nelt; iel++) {
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
     front[iel] = front[iel]-newc[iel];
     count = nvertex+front[iel];
-    for (i = 0; i < 6; i++) {
+    FOR_START(i, cit2, 0, 6, 1, cit_step_add, RND) {
+    /*for (i = 0; i < 6; i++) {*/
       cb1 = cbc[iel][i];
       if (i < 2) {
         ne = 4;
@@ -1368,9 +2601,9 @@ void mortar()
         // i loops over faces. Only 4 faces need to be examed for edge visit.
         // On face 1, edge 0,1,2 and 3 will be visited. On face 2, edge 4,5,6
         // and 7 will be visited. On face 3, edge 8 and 9 will be visited and
-        // on face 4, edge 10 and 11 will be visited. The 12 edges can be 
+        // on face 4, edge 10 and 11 will be visited. The 12 edges can be
         // covered by four faces, there is no need to visit edges on face
-        // 5 and 6.  So ne is set to be 0. 
+        // 5 and 6.  So ne is set to be 0.
         // However, i still needs to loop over 4 and 5, since the interiors
         // of face 5 and 6 still need to be visited.
 
@@ -1379,7 +2612,8 @@ void mortar()
         space = 1;
       }
 
-      for (ie = 0; ie < ne; ie += space) {
+      FOR_START(ie, cit3, 0, ne, space, cit_step_add, RND) {
+      /*for (ie = 0; ie < ne; ie += space) {*/
         edge_g = edgenumber[i][ie];
         if (eassign[iel][edge_g]) {
           // generate the new mortar points index, mor_v
@@ -1387,8 +2621,8 @@ void mortar()
           // assign mor_v to local edge ie of face i on element iel
           mor_edge(ie, i, iel, mor_v);
 
-          // Since this edge is shared by another face of element 
-          // iel, assign mor_v to the corresponding edge on the other 
+          // Since this edge is shared by another face of element
+          // iel, assign mor_v to the corresponding edge on the other
           // face also.
 
           // find the other face
@@ -1427,15 +2661,140 @@ void mortar()
           } else {
             if (diagn[iel][edgenumber[i][ie]][0] != -1) {
               ntemp = diagn[iel][edgenumber[i][ie]][0];
-              mor_ne(mor_v, diagn[iel][edgenumber[i][ie]][1], 
+              mor_ne(mor_v, diagn[iel][edgenumber[i][ie]][1],
                      ie, i, ie2, face2, iel, ntemp);
             }
           }
         }
-      } 
+      }
+      FOR_END(cit3);
 
       if (fassign[iel][i]) {
-        // generate new mortar points index in face interior. 
+        // generate new mortar points index in face interior.
+        // if face i is of type 2 or iel doesn't have a neighbor element,
+        // assign new mortar point indices to interior mortar points
+        // of face i of iel.
+        cb = cbc[iel][i];
+        if (cb == 1 || cb == 0) {
+          FOR_START(jj, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+          /*for (jj = 1; jj < LX1-1; jj++) {*/
+            FOR_START(ii, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+            /*for (ii = 1; ii < LX1-1; ii++) {*/
+              idmo[iel][i][0][0][jj][ii] = count;
+              count = count+1;
+            }
+            FOR_END(cit4);
+          }
+          FOR_END(cit3);
+
+          // if face i is of type 2, assign new mortar point indices
+          // to iel as well as to the neighboring element on face i
+        } else if (cb == 2) {
+          if (idmo[iel][i][0][0][1][1] == -1) {
+            ntemp = sje[iel][i][0][0];
+            jface = jjface[i];
+            FOR_START(jj, cit3, 1, LX1-1, 1, cit_step_add, RND) {
+            /*for (jj = 1; jj < LX1-1; jj++) {*/
+              FOR_START(ii, cit4, 1, LX1-1, 1, cit_step_add, RND) {
+              /*for (ii = 1; ii < LX1-1; ii++) {*/
+                idmo[iel][i][0][0][jj][ii] = count;
+                idmo[ntemp][jface][0][0][jj][ii] = count;
+                count = count+1;
+              }
+              FOR_END(cit4);
+            }
+            FOR_END(cit3);
+          }
+        }
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
+  for (iel = 0; iel < nelt; iel++) {
+    front[iel] = front[iel]-newc[iel];
+    count = nvertex+front[iel];
+    for (i = 0; i < 6; i++) {
+      cb1 = cbc[iel][i];
+      if (i < 2) {
+        ne = 4;
+        space = 1;
+      } else if (i < 4) {
+        ne = 3;
+        space = 2;
+
+        // i loops over faces. Only 4 faces need to be examed for edge visit.
+        // On face 1, edge 0,1,2 and 3 will be visited. On face 2, edge 4,5,6
+        // and 7 will be visited. On face 3, edge 8 and 9 will be visited and
+        // on face 4, edge 10 and 11 will be visited. The 12 edges can be
+        // covered by four faces, there is no need to visit edges on face
+        // 5 and 6.  So ne is set to be 0.
+        // However, i still needs to loop over 4 and 5, since the interiors
+        // of face 5 and 6 still need to be visited.
+
+      } else {
+        ne = 0;
+        space = 1;
+      }
+
+      for (ie = 0; ie < ne; ie += space) {
+        edge_g = edgenumber[i][ie];
+        if (eassign[iel][edge_g]) {
+          // generate the new mortar points index, mor_v
+          mor_assign(mor_v, &count);
+          // assign mor_v to local edge ie of face i on element iel
+          mor_edge(ie, i, iel, mor_v);
+
+          // Since this edge is shared by another face of element
+          // iel, assign mor_v to the corresponding edge on the other
+          // face also.
+
+          // find the other face
+          face2 = f_e_ef[i][ie];
+          // find the local edge index of this edge on the other face
+          ie2 = localedgenumber[edge_g][face2];
+          // asssign mor_v  to local edge ie2 of face face2 on element iel
+          mor_edge(ie2, face2, iel, mor_v);
+
+          // There are some neighbor elements also sharing this edge. Assign
+          // mor_v to neighbor element, neighbored by face i.
+          if (cbc[iel][i] == 2) {
+            ntemp = sje[iel][i][0][0];
+            mor_edge(ie, jjface[i], ntemp, mor_v);
+            mor_edge(op[ie2], face2, ntemp, mor_v);
+          }
+
+          // assign mor_v  to neighbor element neighbored by face face2
+          if (cbc[iel][face2] == 2) {
+            ntemp = sje[iel][face2][0][0];
+            mor_edge(ie2, jjface[face2], ntemp, mor_v);
+            mor_edge(op[ie], i, ntemp, mor_v);
+          }
+
+          // assign mor_v to neighbor element sharing this edge
+
+          // if the neighbor is of the same size of iel
+          if (!if_1_edge[iel][edgenumber[i][ie]]) {
+            if (diagn[iel][edgenumber[i][ie]][0] != -1) {
+              ntemp = diagn[iel][edgenumber[i][ie]][0];
+              mor_edge(op[ie2], jjface[face2], ntemp, mor_v);
+              mor_edge(op[ie], jjface[i], ntemp, mor_v);
+            }
+
+            // if the neighbor has a size larger than iel's
+          } else {
+            if (diagn[iel][edgenumber[i][ie]][0] != -1) {
+              ntemp = diagn[iel][edgenumber[i][ie]][0];
+              mor_ne(mor_v, diagn[iel][edgenumber[i][ie]][1],
+                     ie, i, ie2, face2, iel, ntemp);
+            }
+          }
+        }
+      }
+
+      if (fassign[iel][i]) {
+        // generate new mortar points index in face interior.
         // if face i is of type 2 or iel doesn't have a neighbor element,
         // assign new mortar point indices to interior mortar points
         // of face i of iel.
@@ -1461,23 +2820,69 @@ void mortar()
                 count = count+1;
               }
             }
-          } 
+          }
         }
       }
     }
   }
+#endif // USE_CITERATOR
 
   // for edges on nonconforming faces, copy the mortar points indices
   // from neighbors.
+#ifdef USE_CITERATOR
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
+  /*for (iel = 0; iel < nelt; iel++) {*/
+    FOR_START(i, cit2, 0, 6, 1, cit_step_add, RND) {
+    /*for (i = 0; i < 6; i++) {*/
+      cb = cbc[iel][i];
+      if (cb == 3) {
+        // edges
+        edgecopy_s(i, iel);
+      }
+
+      // face interior
+
+      jface = jjface[i];
+      if (cb == 3) {
+        FOR_START(iii, cit3, 0, 2, 1, cit_step_add, RND) {
+        /*for (iii = 0; iii < 2; iii++) {*/
+          FOR_START(jjj, cit4, 0, 2, 1, cit_step_add, RND) {
+          /*for (jjj = 0; jjj < 2; jjj++) {*/
+            ntemp = sje[iel][i][jjj][iii];
+            FOR_START(jj, cit5, 0, LX1, 1, cit_step_add, RND) {
+            /*for (jj = 0; jj < LX1; jj++) {*/
+              FOR_START(ii, cit6, 0, LX1, 1, cit_step_add, RND) {
+              /*for (ii = 0; ii < LX1; ii++) {*/
+                idmo[iel][i][jjj][iii][jj][ii] =
+                  idmo[ntemp][jface][0][0][jj][ii];
+              }
+              FOR_END(cit6);
+            }
+            FOR_END(cit5);
+            idmo[iel][i][jjj][iii][0][0] = idmo[ntemp][jface][0][0][0][0];
+            idmo[iel][i][jjj][iii][0][LX1-1] = idmo[ntemp][jface][1][0][0][LX1-1];
+            idmo[iel][i][jjj][iii][LX1-1][0] = idmo[ntemp][jface][0][1][LX1-1][0];
+            idmo[iel][i][jjj][iii][LX1-1][LX1-1]=
+              idmo[ntemp][jface][1][1][LX1-1][LX1-1];
+          }
+          FOR_END(cit4);
+        }
+        FOR_END(cit3);
+      }
+    }
+    FOR_END(cit2);
+  }
+  FOR_END(cit1);
+#else
   for (iel = 0; iel < nelt; iel++) {
     for (i = 0; i < 6; i++) {
       cb = cbc[iel][i];
       if (cb == 3) {
-        // edges 
+        // edges
         edgecopy_s(i, iel);
-      } 
+      }
 
-      // face interior 
+      // face interior
 
       jface = jjface[i];
       if (cb == 3) {
@@ -1500,30 +2905,42 @@ void mortar()
       }
     }
   }
+#endif // USE_CITERATOR
 }
 
-       
+
 //-----------------------------------------------------------------
 // This subroutine fills array emo.
-// emo  records all elements sharing the same mortar point 
+// emo  records all elements sharing the same mortar point
 //              (only applies to element vertices) .
 // emo[n][i][0] gives the element ID of the i'th element sharing
 //              mortar point n. (emo[n][i][0]=ie), ie is element
 //              index.
 // emo[n][i][1] gives the vertex index of mortar point n on this
 //              element (emo[n][i][1]=ng), ng is the vertex index.
-// nemo[n] records the total number of elements sharing mortar 
+// nemo[n] records the total number of elements sharing mortar
 //              point n.
 //-----------------------------------------------------------------
 static void get_emo(int ie, int n, int ng)
 {
   int ntemp, i;
   logical L1;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   L1 = false;
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, nemo[n], 1, cit_step_add, RND) {
+  /*for (i = 0; i <= nemo[n]; i++) {*/
+    if (emo[n][i][0] == ie) L1 = true;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i <= nemo[n]; i++) {
     if (emo[n][i][0] == ie) L1 = true;
   }
+#endif // USE_CITERATOR
   if (!L1) {
     ntemp = nemo[n]+1;
     nemo[n] = ntemp;
@@ -1540,7 +2957,7 @@ static void get_emo(int ie, int n, int ng)
 logical ifsame(int iel, int i, int ntemp, int j)
 {
   if (ntemp == -1 || iel == -1) return false;
-  if (xc[iel][i] == xc[ntemp][j] && yc[iel][i] == yc[ntemp][j] && 
+  if (xc[iel][i] == xc[ntemp][j] && yc[iel][i] == yc[ntemp][j] &&
       zc[iel][i] == zc[ntemp][j]) {
     return true;
   }
@@ -1550,61 +2967,111 @@ logical ifsame(int iel, int i, int ntemp, int j)
 
 //-----------------------------------------------------------------
 // Assign three consecutive numbers for mor_v, which will
-// be assigned to the three interior points of an edge as the 
+// be assigned to the three interior points of an edge as the
 // mortar point indices.
 //-----------------------------------------------------------------
 static void mor_assign(int mor_v[3], int *count)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, 3, 1, cit_step_add, RND) {
+  /*for (i = 0; i < 3; i++) {*/
+    mor_v[i] = *count;
+    *count = *count + 1;
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < 3; i++) {
     mor_v[i] = *count;
     *count = *count + 1;
   }
+#endif // USE_CITERATOR
 }
 
-     
+
 //-----------------------------------------------------------------
-// Copy the mortar points index from mor_v to local 
+// Copy the mortar points index from mor_v to local
 // edge ie of the face'th face on element iel.
 // The edge is conforming.
 //-----------------------------------------------------------------
 static void mor_edge(int ie, int face, int iel, int mor_v[3])
 {
   int i, j, nn;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   if (ie == 0) {
     j = 0;
+#ifdef USE_CITERATOR
+    FOR_START(nn, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (nn = 1; nn < LX1-1; nn++) {*/
+      idmo[iel][face][0][0][j][nn] = mor_v[nn-1];
+    }
+    FOR_END(cit1);
+#else
     for (nn = 1; nn < LX1-1; nn++) {
       idmo[iel][face][0][0][j][nn] = mor_v[nn-1];
     }
-  } else if (ie == 1) { 
+#endif // USE_CITERATOR
+  } else if (ie == 1) {
     i = LX1-1;
+#ifdef USE_CITERATOR
+    FOR_START(nn, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (nn = 1; nn < LX1-1; nn++) {*/
+      idmo[iel][face][0][0][nn][i] = mor_v[nn-1];
+    }
+    FOR_END(cit1);
+#else
     for (nn = 1; nn < LX1-1; nn++) {
       idmo[iel][face][0][0][nn][i] = mor_v[nn-1];
     }
-  } else if (ie == 2) { 
+#endif // USE_CITERATOR
+  } else if (ie == 2) {
     j = LX1-1;
+#ifdef USE_CITERATOR
+    FOR_START(nn, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (nn = 1; nn < LX1-1; nn++) {*/
+      idmo[iel][face][0][0][j][nn] = mor_v[nn-1];
+    }
+    FOR_END(cit1);
+#else
     for (nn = 1; nn < LX1-1; nn++) {
       idmo[iel][face][0][0][j][nn] = mor_v[nn-1];
     }
-  } else if (ie == 3) { 
+#endif // USE_CITERATOR
+  } else if (ie == 3) {
     i = 0;
+#ifdef USE_CITERATOR
+    FOR_START(nn, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+    /*for (nn = 1; nn < LX1-1; nn++) {*/
+      idmo[iel][face][0][0][nn][i] = mor_v[nn-1];
+    }
+    FOR_END(cit1);
+#else
     for (nn = 1; nn < LX1-1; nn++) {
       idmo[iel][face][0][0][nn][i] = mor_v[nn-1];
     }
+#endif // USE_CITERATOR
   }
 }
 
 
 //------------------------------------------------------------
-// Copy mortar points index on edges from neighbor elements 
+// Copy mortar points index on edges from neighbor elements
 // to an element face of the 3rd type.
 //------------------------------------------------------------
 static void edgecopy_s(int face, int iel)
 {
   int ntemp1, ntemp2, ntemp3, ntemp4;
   int edge_g, edge_l, face2, mor_s_v[2][4], i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   // find four neighbors on this face (3rd type)
   ntemp1 = sje[iel][face][0][0];
@@ -1616,13 +3083,29 @@ static void edgecopy_s(int face, int iel)
 
   // mor_s_v is the array of mortar indices to  be copied.
   nr_init((int *)mor_s_v, 4*2, -1);
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[0][i-1] = idmo[ntemp1][jjface[face]][0][0][0][i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[0][i-1] = idmo[ntemp1][jjface[face]][0][0][0][i];
   }
+#endif // USE_CITERATOR
   mor_s_v[0][LX1-2] = idmo[ntemp1][jjface[face]][1][0][0][LX1-1];
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < LX1-1; i++) {*/
+    mor_s_v[1][i] = idmo[ntemp2][jjface[face]][0][0][0][i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < LX1-1; i++) {
     mor_s_v[1][i] = idmo[ntemp2][jjface[face]][0][0][0][i];
   }
+#endif // USE_CITERATOR
 
   // copy mor_s_v to local edge 0 on this face
   mor_s_e(0, face, iel, mor_s_v);
@@ -1635,15 +3118,31 @@ static void edgecopy_s(int face, int iel)
   mor_s_e(edge_l, face2, iel, mor_s_v);
 
   // local edge 1
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[0][i-1] = idmo[ntemp2][jjface[face]][0][0][i][LX1-1];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[0][i-1] = idmo[ntemp2][jjface[face]][0][0][i][LX1-1];
   }
+#endif // USE_CITERATOR
   mor_s_v[0][LX1-2] = idmo[ntemp2][jjface[face]][1][1][LX1-1][LX1-1];
 
   mor_s_v[1][0] = idmo[ntemp4][jjface[face]][1][0][0][LX1-1];
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[1][i] = idmo[ntemp4][jjface[face]][0][0][i][LX1-1];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[1][i] = idmo[ntemp4][jjface[face]][0][0][i][LX1-1];
   }
+#endif // USE_CITERATOR
 
   mor_s_e(1, face, iel, mor_s_v);
   face2 = f_e_ef[face][1];
@@ -1652,15 +3151,31 @@ static void edgecopy_s(int face, int iel)
   mor_s_e(edge_l, face2, iel, mor_s_v);
 
   // local edge 2
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[0][i-1] = idmo[ntemp3][jjface[face]][0][0][LX1-1][i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[0][i-1] = idmo[ntemp3][jjface[face]][0][0][LX1-1][i];
   }
+#endif // USE_CITERATOR
   mor_s_v[0][LX1-2] = idmo[ntemp3][jjface[face]][1][1][LX1-1][LX1-1];
 
   mor_s_v[1][0] = idmo[ntemp4][jjface[face]][0][1][LX1-1][0];
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[1][i] = idmo[ntemp4][jjface[face]][0][0][LX1-1][i];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[1][i] = idmo[ntemp4][jjface[face]][0][0][LX1-1][i];
   }
+#endif // USE_CITERATOR
 
   mor_s_e(2, face, iel, mor_s_v);
   face2 = f_e_ef[face][2];
@@ -1669,14 +3184,30 @@ static void edgecopy_s(int face, int iel)
   mor_s_e(edge_l, face2, iel, mor_s_v);
 
   // local edge 3
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 1; i < LX1-1; i++) {*/
+    mor_s_v[0][i-1] = idmo[ntemp1][jjface[face]][0][0][i][0];
+  }
+  FOR_END(cit1);
+#else
   for (i = 1; i < LX1-1; i++) {
     mor_s_v[0][i-1] = idmo[ntemp1][jjface[face]][0][0][i][0];
   }
+#endif // USE_CITERATOR
   mor_s_v[0][LX1-2] = idmo[ntemp1][jjface[face]][0][1][LX1-1][0];
 
+#ifdef USE_CITERATOR
+  FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+  /*for (i = 0; i < LX1-1; i++) {*/
+    mor_s_v[1][i] = idmo[ntemp3][jjface[face]][0][0][i][0];
+  }
+  FOR_END(cit1);
+#else
   for (i = 0; i < LX1-1; i++) {
     mor_s_v[1][i] = idmo[ntemp3][jjface[face]][0][0][i][0];
   }
+#endif // USE_CITERATOR
 
   mor_s_e(3, face, iel, mor_s_v);
   face2 = f_e_ef[face][3];
@@ -1688,40 +3219,95 @@ static void edgecopy_s(int face, int iel)
 
 //------------------------------------------------------------
 // Copy mortar points index from mor_s_v to local edge n
-// on face "face" of element iel. The edge is nonconforming. 
+// on face "face" of element iel. The edge is nonconforming.
 //------------------------------------------------------------
 static void mor_s_e(int n, int face, int iel, int mor_s_v[2][4])
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   if (n == 0) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      idmo[iel][face][0][0][0][i] = mor_s_v[0][i-1];
+    }
+    FOR_END(cit1);
+    FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1-1; i++) {*/
+      idmo[iel][face][1][0][0][i] = mor_s_v[1][i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1; i++) {
       idmo[iel][face][0][0][0][i] = mor_s_v[0][i-1];
     }
     for (i = 0; i < LX1-1; i++) {
       idmo[iel][face][1][0][0][i] = mor_s_v[1][i];
     }
+#endif // USE_CITERATOR
   } else if (n == 1) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      idmo[iel][face][1][0][i][LX1-1] = mor_s_v[0][i-1];
+    }
+    FOR_END(cit1);
+    FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1-1; i++) {*/
+      idmo[iel][face][1][1][i][LX1-1] = mor_s_v[1][i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1; i++) {
       idmo[iel][face][1][0][i][LX1-1] = mor_s_v[0][i-1];
     }
     for (i = 0; i < LX1-1; i++) {
       idmo[iel][face][1][1][i][LX1-1] = mor_s_v[1][i];
     }
+#endif // USE_CITERATOR
   } else if (n == 2) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      idmo[iel][face][0][1][LX1-1][i] = mor_s_v[0][i-1];
+    }
+    FOR_END(cit1);
+    FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1-1; i++) {*/
+      idmo[iel][face][1][1][LX1-1][i] = mor_s_v[1][i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1; i++) {
       idmo[iel][face][0][1][LX1-1][i] = mor_s_v[0][i-1];
     }
     for (i = 0; i < LX1-1; i++) {
       idmo[iel][face][1][1][LX1-1][i] = mor_s_v[1][i];
     }
+#endif // USE_CITERATOR
   } else if (n == 3) {
+#ifdef USE_CITERATOR
+    FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+    /*for (i = 1; i < LX1; i++) {*/
+      idmo[iel][face][0][0][i][0] = mor_s_v[0][i-1];
+    }
+    FOR_END(cit1);
+    FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+    /*for (i = 0; i < LX1-1; i++) {*/
+      idmo[iel][face][0][1][i][0] = mor_s_v[1][i];
+    }
+    FOR_END(cit1);
+#else
     for (i = 1; i < LX1; i++) {
       idmo[iel][face][0][0][i][0] = mor_s_v[0][i-1];
     }
     for (i = 0; i < LX1-1; i++) {
       idmo[iel][face][0][1][i][0] = mor_s_v[1][i];
     }
+#endif // USE_CITERATOR
   }
 }
 
@@ -1729,52 +3315,119 @@ static void mor_s_e(int n, int face, int iel, int mor_s_v[2][4])
 //------------------------------------------------------------
 // Copy mortar point indices from mor_s_v to local edge n
 // on face "face" of element iel. nn is the edge mortar index,
-// which indicates that mor_s_v  corresponds to left/bottom or 
+// which indicates that mor_s_v  corresponds to left/bottom or
 // right/top part of the edge.
 //------------------------------------------------------------
 static void mor_s_e_nn(int n, int face, int iel, int mor_s_v[4], int nn)
 {
   int i;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   if (n == 0) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1; i++) {*/
+        idmo[iel][face][0][0][0][i] = mor_s_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1; i++) {
         idmo[iel][face][0][0][0][i] = mor_s_v[i-1];
       }
+#endif // USE_CITERATOR
     } else {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1-1; i++) {*/
+        idmo[iel][face][1][0][0][i] = mor_s_v[i];
+      }
+      FOR_END(cit1);
+#else
       for (i = 0; i < LX1-1; i++) {
         idmo[iel][face][1][0][0][i] = mor_s_v[i];
       }
+#endif // USE_CITERATOR
     }
   } else if (n == 1) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1; i++) {*/
+        idmo[iel][face][1][0][i][LX1-1] = mor_s_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1; i++) {
         idmo[iel][face][1][0][i][LX1-1] = mor_s_v[i-1];
       }
+#endif // USE_CITERATOR
     } else {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1-1; i++) {*/
+        idmo[iel][face][1][1][i][LX1-1] = mor_s_v[i];
+      }
+      FOR_END(cit1);
+#else
       for (i = 0; i < LX1-1; i++) {
         idmo[iel][face][1][1][i][LX1-1] = mor_s_v[i];
       }
+#endif // USE_CITERATOR
     }
   } else if (n == 2) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1; i++) {*/
+        idmo[iel][face][0][1][LX1-1][i] = mor_s_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1; i++) {
         idmo[iel][face][0][1][LX1-1][i] = mor_s_v[i-1];
       }
+#endif // USE_CITERATOR
     } else {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1-1; i++) {*/
+        idmo[iel][face][1][1][LX1-1][i] = mor_s_v[i];
+      }
+      FOR_END(cit1);
+#else
       for (i = 0; i < LX1-1; i++) {
         idmo[iel][face][1][1][LX1-1][i] = mor_s_v[i];
       }
+#endif // USE_CITERATOR
     }
   } else if (n == 3) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1; i++) {*/
+        idmo[iel][face][0][0][i][0] = mor_s_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1; i++) {
         idmo[iel][face][0][0][i][0] = mor_s_v[i-1];
       }
+#endif // USE_CITERATOR
     } else {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 0, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 0; i < LX1-1; i++) {*/
+        idmo[iel][face][0][1][i][0] = mor_s_v[i];
+      }
+      FOR_END(cit1);
+#else
       for (i = 0; i < LX1-1; i++) {
         idmo[iel][face][0][1][i][0] = mor_s_v[i];
       }
+#endif // USE_CITERATOR
     }
   }
 }
@@ -1790,24 +3443,45 @@ static void mortar_vertex(int i, int iel, int count)
   int face_a[3], itemp, ntemp, ii, jj, j[3];
   int iintempx[3], l, nbe, lc, temp;
   logical if_temp;
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
+#ifdef USE_CITERATOR
+  FOR_START(l, cit1, 0, 8, 1, cit_step_add, RND) {
+  /*for (l = 0; l < 8; l++) {*/
+    ntempx[l] = -1;
+    ifntempx[l] = -1;
+  }
+  FOR_END(cit1);
+#else
   for (l = 0; l < 8; l++) {
     ntempx[l] = -1;
     ifntempx[l] = -1;
   }
+#endif // USE_CITERATOR
 
   // face_a records the three faces sharing this vertex on iel.
-  // lc_a gives the local corner number of this vertex on each 
+  // lc_a gives the local corner number of this vertex on each
   // face in face_a.
+#ifdef USE_CITERATOR
+  FOR_START(l, cit1, 0, 3, 1, cit_step_add, RND) {
+  /*for (l = 0; l < 3; l++) {*/
+    face_a[l] = f_c[i][l];
+    lc_a[l] = local_corner[face_a[l]][i];
+  }
+  FOR_END(cit1);
+#else
   for (l = 0; l < 3; l++) {
     face_a[l] = f_c[i][l];
     lc_a[l] = local_corner[face_a[l]][i];
   }
+#endif // USE_CITERATOR
 
-  // each vertex is shared by at most 8 elements. 
-  // ntempx[j] gives the element index of a POSSIBLE element with its 
+  // each vertex is shared by at most 8 elements.
+  // ntempx[j] gives the element index of a POSSIBLE element with its
   // j'th  vertex is iel's i'th vertex
-  // ifntempx[i]=ntempx[i] means  ntempx[i] exists 
+  // ifntempx[i]=ntempx[i] means  ntempx[i] exists
   // ifntempx[i]=-1 means ntempx[i] does not exist.
 
   ntempx[7-i] = iel;
@@ -1815,11 +3489,13 @@ static void mortar_vertex(int i, int iel, int count)
 
   // first find all elements sharing this vertex, ifntempx
 
-  // find the three possible neighbors of iel, neighbored by faces 
+  // find the three possible neighbors of iel, neighbored by faces
   // listed in array face_a
 
-  for (itemp = 0; itemp < 3; itemp++) {
-    // j[itemp] is the local corner number of this vertex on the 
+#ifdef USE_CITERATOR
+  FOR_START(itemp, cit1, 0, 3, 1, cit_step_add, RND) {
+  /*for (itemp = 0; itemp < 3; itemp++) {*/
+    // j[itemp] is the local corner number of this vertex on the
     // neighbor element on the corresponding face.
     j[itemp] = c_f[jjface[face_a[itemp]]][lc_a[itemp]];
 
@@ -1827,10 +3503,10 @@ static void mortar_vertex(int i, int iel, int count)
     // neighbor element, neighborned by face_a[itemp]
     iintempx[itemp] = cal_intempx[face_a[itemp]][lc_a[itemp]];
 
-    // ntemp refers the neighbor element 
+    // ntemp refers the neighbor element
     ntemp = -1;
 
-    // if the face is nonconforming, find out in which piece of the 
+    // if the face is nonconforming, find out in which piece of the
     // mortar the vertex is located
     ii = cal_iijj[lc_a[itemp]][0];
     jj = cal_iijj[lc_a[itemp]][1];
@@ -1839,7 +3515,7 @@ static void mortar_vertex(int i, int iel, int count)
     // if the face is conforming
     if (ntemp == -1) {
       ntemp = sje[iel][face_a[itemp]][0][0];
-      // find the possible neighbor        
+      // find the possible neighbor
       ntempx[iintempx[itemp]] = ntemp;
       // check whether this possible neighbor is a real neighbor or not
       if (ntemp != -1) {
@@ -1856,11 +3532,56 @@ static void mortar_vertex(int i, int iel, int count)
           ntempx[iintempx[itemp]] = ntemp;
         }
       }
-    } 
+    }
   }
+  FOR_END(cit1);
+#else
+  for (itemp = 0; itemp < 3; itemp++) {
+    // j[itemp] is the local corner number of this vertex on the
+    // neighbor element on the corresponding face.
+    j[itemp] = c_f[jjface[face_a[itemp]]][lc_a[itemp]];
+
+    // iitempx[itemp] records the vertex index of i on the
+    // neighbor element, neighborned by face_a[itemp]
+    iintempx[itemp] = cal_intempx[face_a[itemp]][lc_a[itemp]];
+
+    // ntemp refers the neighbor element
+    ntemp = -1;
+
+    // if the face is nonconforming, find out in which piece of the
+    // mortar the vertex is located
+    ii = cal_iijj[lc_a[itemp]][0];
+    jj = cal_iijj[lc_a[itemp]][1];
+    ntemp = sje[iel][face_a[itemp]][jj][ii];
+
+    // if the face is conforming
+    if (ntemp == -1) {
+      ntemp = sje[iel][face_a[itemp]][0][0];
+      // find the possible neighbor
+      ntempx[iintempx[itemp]] = ntemp;
+      // check whether this possible neighbor is a real neighbor or not
+      if (ntemp != -1) {
+        if (ifsame(ntemp, j[itemp], iel, i)) {
+          ifntempx[iintempx[itemp]] = ntemp;
+        }
+      }
+
+      // if the face is nonconforming
+    } else {
+      if (ntemp != -1) {
+        if (ifsame(ntemp, j[itemp], iel, i)) {
+          ifntempx[iintempx[itemp]] = ntemp;
+          ntempx[iintempx[itemp]] = ntemp;
+        }
+      }
+    }
+  }
+#endif // USE_CITERATOR
 
   // find the possible three neighbors, neighbored by an edge only
-  for (l = 0; l < 3; l++) {
+#ifdef USE_CITERATOR
+  FOR_START(l, cit1, 0, 3, 1, cit_step_add, RND) {
+  /*for (l = 0; l < 3; l++) {*/
     // find first existing neighbor of any of the faces in array face_a
     if_temp = false;
     if (l == 0) {
@@ -1879,11 +3600,11 @@ static void mortar_vertex(int i, int iel, int count)
       if (ifntempx[iintempx[l]] != -1) {
         nbe = ifntempx[iintempx[l]];
         // if 1st neighor exists, check the neighbor's two neighbors in
-        // the other two directions. 
+        // the other two directions.
         // e.g. if l=0, check directions 1 and 2,i.e. itemp=1,2,1
         // if l=1, itemp=2,0,-2
         // if l=2, itemp=0,1,1
-         
+
         itemp = face_l1[l];
         while ((l != 1 && itemp <= face_l2[l]) ||
                (l == 1 && itemp >= face_l2[l])) {
@@ -1926,10 +3647,10 @@ static void mortar_vertex(int i, int iel, int count)
 
         // check the last neighbor element, neighbored by an edge
 
-        // ifntempx[iintempx[l]] has been visited in the above, now 
-        // check another neighbor element(nbe) neighbored by a face 
+        // ifntempx[iintempx[l]] has been visited in the above, now
+        // check another neighbor element(nbe) neighbored by a face
 
-        // if the neighbor element is neighbored by face 
+        // if the neighbor element is neighbored by face
         // face_a[face_l1[l]] exists
         if (ifntempx[iintempx[face_l1[l]]] != -1) {
           nbe = ifntempx[iintempx[face_l1[l]]];
@@ -1947,7 +3668,7 @@ static void mortar_vertex(int i, int iel, int count)
           if (ntemp == -1) {
             ntemp = sje[nbe][face_a[itemp]][0][0];
             if (ntemp != -1) {
-              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe, 
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe,
                          j[face_l1[l]])) {
                 ntempx[temp] = ntemp;
                 ifntempx[temp] = ntemp;
@@ -1966,7 +3687,7 @@ static void mortar_vertex(int i, int iel, int count)
             }
           }
 
-          // if the neighbor element neighbored by face face_a[face_l2[l]] 
+          // if the neighbor element neighbored by face face_a[face_l2[l]]
           // does not exist
         } else if (ifntempx[iintempx[face_l2[l]]] != -1) {
           nbe = ifntempx[iintempx[face_l2[l]]];
@@ -2000,6 +3721,149 @@ static void mortar_vertex(int i, int iel, int count)
       }
     }
   }
+  FOR_END(cit1);
+#else
+  for (l = 0; l < 3; l++) {
+    // find first existing neighbor of any of the faces in array face_a
+    if_temp = false;
+    if (l == 0) {
+      if_temp = true;
+    } else if (l == 1) {
+      if (ifntempx[iintempx[l-1]] == -1) {
+        if_temp = true;
+      }
+    } else if (l == 2) {
+      if (ifntempx[iintempx[l-1]] == -1 && ifntempx[iintempx[l-2]] == -1) {
+        if_temp = true;
+      }
+    }
+
+    if (if_temp) {
+      if (ifntempx[iintempx[l]] != -1) {
+        nbe = ifntempx[iintempx[l]];
+        // if 1st neighor exists, check the neighbor's two neighbors in
+        // the other two directions.
+        // e.g. if l=0, check directions 1 and 2,i.e. itemp=1,2,1
+        // if l=1, itemp=2,0,-2
+        // if l=2, itemp=0,1,1
+
+        itemp = face_l1[l];
+        while ((l != 1 && itemp <= face_l2[l]) ||
+               (l == 1 && itemp >= face_l2[l])) {
+          //lc is the local corner number of this vertex on face face_a[itemp]
+          // on the neighbor element of iel, neighbored by a face face_a[l]
+          lc = local_corner[face_a[itemp]][j[l]];
+          // temp is the vertex index of this vertex on the neighbor element
+          // neighbored by an edge
+          temp = cal_intempx[face_a[itemp]][lc];
+          ii = cal_iijj[lc][0];
+          jj = cal_iijj[lc][1];
+          ntemp = sje[nbe][face_a[itemp]][jj][ii];
+
+          // if the face face_a[itemp] is conforming
+          if (ntemp == -1) {
+            ntemp = sje[nbe][face_a[itemp]][0][0];
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe, j[l])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                // nnb[itemp] records the neighbor element neighbored by an
+                // edge only
+                nnb[itemp] = ntemp;
+              }
+            }
+
+            // if the face face_a[itemp] is nonconforming
+          } else {
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe, j[l])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                nnb[itemp] = ntemp;
+              }
+            }
+          }
+
+          itemp += face_ld[l];
+        }
+
+        // check the last neighbor element, neighbored by an edge
+
+        // ifntempx[iintempx[l]] has been visited in the above, now
+        // check another neighbor element(nbe) neighbored by a face
+
+        // if the neighbor element is neighbored by face
+        // face_a[face_l1[l]] exists
+        if (ifntempx[iintempx[face_l1[l]]] != -1) {
+          nbe = ifntempx[iintempx[face_l1[l]]];
+          // itemp is the last direction other than l and face_l1[l]
+          itemp = face_l2[l];
+          lc = local_corner[face_a[itemp]][j[face_l1[l]]];
+          temp = cal_intempx[face_a[itemp]][lc];
+          ii = cal_iijj[lc][0];
+          jj = cal_iijj[lc][1];
+
+          // ntemp records the last neighbor element neighbored by an edge
+          // with element iel
+          ntemp = sje[nbe][face_a[itemp]][jj][ii];
+          // if conforming
+          if (ntemp == -1) {
+            ntemp = sje[nbe][face_a[itemp]][0][0];
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe,
+                         j[face_l1[l]])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                nnb[l] = ntemp;
+              }
+            }
+            // if nonconforming
+          } else {
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe,
+                         j[face_l1[l]])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                nnb[l] = ntemp;
+              }
+            }
+          }
+
+          // if the neighbor element neighbored by face face_a[face_l2[l]]
+          // does not exist
+        } else if (ifntempx[iintempx[face_l2[l]]] != -1) {
+          nbe = ifntempx[iintempx[face_l2[l]]];
+          itemp = face_l1[l];
+          lc = local_corner[face_a[itemp]][j[face_l2[l]]];
+          temp = cal_intempx[face_a[itemp]][lc];
+          ii = cal_iijj[lc][0];
+          jj = cal_iijj[lc][1];
+          ntemp = sje[nbe][face_a[itemp]][jj][ii];
+          if (ntemp == -1) {
+            ntemp = sje[nbe][face_a[itemp]][0][0];
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe,
+                         j[face_l2[l]])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                nnb[l] = ntemp;
+              }
+            }
+          } else {
+            if (ntemp != -1) {
+              if (ifsame(ntemp, c_f[jjface[face_a[itemp]]][lc], nbe,
+                         j[face_l2[l]])) {
+                ntempx[temp] = ntemp;
+                ifntempx[temp] = ntemp;
+                nnb[l] = ntemp;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+#endif // USE_CITERATOR
 
   // check the neighbor element, neighbored by a vertex only
 
@@ -2011,13 +3875,13 @@ static void mortar_vertex(int i, int iel, int count)
   ntemp = -1;
 
   // the neighbor element neighbored by a vertex must be a neighbor of
-  // a valid(non-negative) nnb[i], neighbored by a face 
+  // a valid(non-negative) nnb[i], neighbored by a face
 
   if (nnb[0] != -1) {
     lc = oplc[local_corner[face_a[2]][i]];
     ii = cal_iijj[lc][0];
     jj = cal_iijj[lc][1];
-    // ntemp records the neighbor of iel, neighbored by vertex i 
+    // ntemp records the neighbor of iel, neighbored by vertex i
     ntemp = sje[nnb[0]][face_a[2]][jj][ii];
     // temp is the vertex index of i on ntemp
     temp = cal_intempx[face_a[2]][lc];
@@ -2142,13 +4006,13 @@ static void mortar_vertex(int i, int iel, int count)
   }
 }
 
-     
+
 //---------------------------------------------------------------
 // Copy the mortar points index  (mor_v + vertex mortar point) from
 // edge'th local edge on face'th face on element ntemp to iel.
-// ntemp is iel's neighbor, neighbored by this edge only. 
+// ntemp is iel's neighbor, neighbored by this edge only.
 // This subroutine is for the situation that iel is of larger
-// size than ntemp.  
+// size than ntemp.
 // face, face2 are face indices
 // edge and edge2 are local edge numbers of this edge on face and face2
 // nn is edge motar index, which indicate whether this edge
@@ -2159,58 +4023,125 @@ static void mor_ne(int mor_v[3], int nn, int edge, int face,
                    int edge2, int face2, int ntemp, int iel)
 {
   int i, mor_s_v[4] = {0,};
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
 
   // get mor_s_v which is the mor_v + vertex mortar
   if (edge == 2) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i-1] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i-1] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
       mor_s_v[3] = idmo[ntemp][face][1][1][LX1-1][LX1-1];
     } else {
       mor_s_v[0] = idmo[ntemp][face][0][1][LX1-1][0];
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
     }
 
   } else if (edge == 3) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i-1] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i-1] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
       mor_s_v[3] = idmo[ntemp][face][0][1][LX1-1][0];
     } else {
       mor_s_v[0] = idmo[ntemp][face][0][0][0][0];
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
     }
 
   } else if (edge == 0) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i-1] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i-1] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
       mor_s_v[3] = idmo[ntemp][face][1][0][0][LX1-1];
     } else {
       mor_s_v[0] = idmo[ntemp][face][0][0][0][0];
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
     }
 
   } else if (edge == 1) {
     if (nn == 0) {
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i-1] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i-1] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
       mor_s_v[3] = idmo[ntemp][face][1][1][LX1-1][LX1-1];
     } else {
       mor_s_v[0] = idmo[ntemp][face][1][0][0][LX1-1];
+#ifdef USE_CITERATOR
+      FOR_START(i, cit1, 1, LX1-1, 1, cit_step_add, RND) {
+      /*for (i = 1; i < LX1-1; i++) {*/
+        mor_s_v[i] = mor_v[i-1];
+      }
+      FOR_END(cit1);
+#else
       for (i = 1; i < LX1-1; i++) {
         mor_s_v[i] = mor_v[i-1];
       }
+#endif // USE_CITERATOR
     }
   }
 

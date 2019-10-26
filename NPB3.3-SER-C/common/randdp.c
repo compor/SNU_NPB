@@ -3,7 +3,7 @@
 
 #include "adt_citerator.h"
 
-#define USE_CITERATOR
+/*#define USE_CITERATOR*/
 
 double randlc( double *x, double a )
 {
@@ -127,10 +127,7 @@ void vranlc( int n, double *x, double a, double y[] )
   //  Generate N results.   This loop is not vectorizable.
   //--------------------------------------------------------------------
 #ifdef USE_CITERATOR
-  enum cit_order order = FWD;
-  order = n ? FWD : FWD;
-
-  FOR_START(i, cit1, 0, n-1, 1, cit_step_add, order) {
+  FOR_START(i, cit1, 0, n, 1, cit_step_add, RND) {
   /*for ( i = 0; i < n; i++ ) {*/
     //--------------------------------------------------------------------
     //  Break X into two parts such that X = 2^23 * X1 + X2, compute
