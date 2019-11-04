@@ -355,8 +355,8 @@ void x_solve()
       // begin inner most do loop
       // do all the elements of the cell unless last
       //---------------------------------------------------------------------
-      /*FOR_START(i, cit3, 1, isize - 1+1, 1, cit_step_add, FWD) {*/
-      for (i = 1; i <= isize-1; i++) {
+      FOR_START(i, cit3, 1, isize - 1+1, 1, cit_step_add, FWD) {
+      /*for (i = 1; i <= isize-1; i++) {*/
         //-------------------------------------------------------------------
         // rhs(i) = rhs(i) - A*rhs(i-1)
         //-------------------------------------------------------------------
@@ -374,7 +374,7 @@ void x_solve()
         //-------------------------------------------------------------------
         binvcrhs( lhs[i][BB], lhs[i][CC], rhs[k][j][i] );
       }
-      /*FOR_END(cit3);*/
+      FOR_END(cit3);
 
       //---------------------------------------------------------------------
       // rhs(isize) = rhs(isize) - A*rhs(isize-1)

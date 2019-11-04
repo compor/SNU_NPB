@@ -377,7 +377,7 @@ void exact_rhs()
       }
       FOR_END(cit3);
 
-      FOR_START(j, cit3, 3, grid_points[1]-4+1, 1, cit_step_add, FWD) {
+      FOR_START(j, cit3, 3, grid_points[1]-4+1, 1, cit_step_add, RND) {
       /*for (j = 3; j <= grid_points[1]-4; j++) {*/
         FOR_START(m, cit4, 0, 4+1, 1, cit_step_add, RND) {
         /*for (m = 0; m < 5; m++) {*/
