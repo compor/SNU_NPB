@@ -21,22 +21,29 @@ struct cit_data {
   int step;
 
   enum cit_order order;
+
+  const char *file;
+  long long int line;
 };
 
 /****/
 
 void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end, int step,
-  int (*stepfunc)(const struct cit_data *data), enum cit_order order) {
+  int (*stepfunc)(const struct cit_data *data), enum cit_order order,
+  const char *file, long long int line) {
   struct timeval time;
 
   *data = (struct cit_data *) malloc(1 * sizeof(struct cit_data));
   if(!*data) {
-    /* TODO add message */
+    fprintf(stderr, "error (%s,%lld): ADT CIterator: could not allocate memory for data\n",
+        file, line);
     return;
   }
 
   (*data)->stepfunc = stepfunc;
-  (*data)->step= step;
+  (*data)->step = step;
+  (*data)->file = file;
+  (*data)->line = line;
 
   if(start < end) {
     (*data)->nindices = (end - start) / abs((*data)->stepfunc(*data));
@@ -56,12 +63,18 @@ void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end, int step
     (*data)->nindices = 0;
   }
 
+  if((*data)->nindices < 1) {
+    fprintf(stderr, "warning (%s,%lld): ADT CIterator: loop iterations: %lld\n",
+        file, line, (*data)->nindices);
+  }
+
   (*data)->remaining_indices = (*data)->nindices;
 
   if(RND == order && (*data)->nindices) {
     (*data)->indices = malloc((*data)->nindices * sizeof(cit_int_t));
     if(!(*data)->indices) {
-      /* TODO add message */
+      fprintf(stderr, "error (%s,%lld): ADT CIterator: could not allocate memory for indices\n",
+          file, line);
       return;
     }
 

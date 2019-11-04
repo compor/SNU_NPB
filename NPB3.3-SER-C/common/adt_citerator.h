@@ -9,13 +9,13 @@ enum cit_order {
   RND, /* NOT IMPLEMENTED */
 };
 
-typedef int cit_int_t;
+typedef long long int cit_int_t;
 
 /****/
 
 void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end,
                 int step, int (*stepfunc)(const struct cit_data *data),
-                enum cit_order order);
+                enum cit_order order, const char *file, long long int line);
 void cit_destroy(struct cit_data *data);
 
 cit_int_t cit_begin(struct cit_data *data);
@@ -29,7 +29,7 @@ int cit_step_add(const struct cit_data *data);
 /****/
 
 #define FOR_START(IT, CIT, LB, UB, STEP, STEPVAL, ORDER) \
-    cit_create(&(CIT), (LB), (UB), (STEP), (STEPVAL), (ORDER)); \
+    cit_create(&(CIT), (LB), (UB), (STEP), (STEPVAL), (ORDER), __FILE__, __LINE__); \
     for (IT = cit_begin((CIT)); cit_is_valid((CIT)); IT = cit_next((CIT)))
 
 #define FOR_END(CIT) \
