@@ -453,7 +453,7 @@ static void do_refine(logical *ifmortar, int *irefine)
   int ijeltemp[6][2], sjetemp[6][2][2], n1, n2, nelttemp;
   int cb, cbctemp[6];
 #ifdef USE_CITERATOR
-  struct cit_data *cit1, *cit2;
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
 #endif // USE_CITERATOR
 
   // initialize
@@ -553,7 +553,7 @@ static void do_refine(logical *ifmortar, int *irefine)
     *ifmortar = true;
   }
 
-#ifdef _USE_CITERATOR
+#ifdef USE_CITERATOR
   FOR_START(index, cit1, 0, num_refine, 1, cit_step_add, RND) {
   /*for (index = 0; index < num_refine; index++) {*/
     // miel is old morton index and mielnew is new morton index after refinement.
@@ -588,7 +588,7 @@ static void do_refine(logical *ifmortar, int *irefine)
       nr_init(ijel[nelt+j][0], 12, -1);
       r_init(ta1[nelt+j][0][0], NXYZ, 0.0);
     }
-    FOR_END(cit1);
+    FOR_END(cit2);
 
     // update the tree[]
     ntemp = treetemp << 3;
@@ -620,10 +620,10 @@ static void do_refine(logical *ifmortar, int *irefine)
     }
     FOR_END(cit2);
 
-    FOR_START(i, cit2, 1, 6, 2, cit_step_add, RND) {
+    FOR_START(j, cit2, 1, 6, 2, cit_step_add, RND) {
     /*for (j = 1; j < 6; j += 2) {*/
       FOR_START(i, cit3, 0, 7, 2, cit_step_add, RND) {
-      for (i = 0; i < 7; i += 2) {
+      /*for (i = 0; i < 7; i += 2) {*/
         xc[nelt+j][i]   = xleft;
         xc[nelt+j][i+1] = xhalf;
       }
@@ -757,7 +757,6 @@ static void do_refine(logical *ifmortar, int *irefine)
           ijel[le[k]][i][1] = 0;
         }
         FOR_END(cit4);
-        if (facedir == 0) {
 
         // if the face type of the parent element is type 2
         if (cb == 2 ) {
