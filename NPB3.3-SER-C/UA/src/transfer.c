@@ -1562,7 +1562,7 @@ void transfb_c(double tx[])
   const double third = 1.0/3.0;
   int il1, il2, il3, il4, ig1, ig2, ig3, ig4, ie, iface, col, j, ig, il;
 #ifdef USE_CITERATOR
-  struct cit_data *cit1, *cit2, *cit3, *cit4, *cit5, *cit6, *cit7;
+  struct cit_data *cit1, *cit2, *cit3, *cit4;
 #endif // USE_CITERATOR
 
   r_init(tmort, nmor, 0.0);

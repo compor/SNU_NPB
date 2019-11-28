@@ -1237,7 +1237,7 @@ static void find_refine(logical *if_refine)
 {
   int iel;
 #ifdef USE_CITERATOR
-  struct cit_data *cit1, *cit2;
+  struct cit_data *cit1;
 #endif // USE_CITERATOR
 
   *if_refine = false;

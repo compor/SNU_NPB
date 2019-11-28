@@ -355,7 +355,6 @@ double calc_norm()
   return total;
 }
 
-
 //-----------------------------------------------------------------
 // input array frontier, perform (potentially) parallel add so that
 // the output frontier[i] has sum of frontier[1]+frontier[2]+...+frontier[i]
@@ -377,15 +376,13 @@ void parallel_add(int frontier[])
   } while (iel < nelt);
 
   ntemp = 1;
-#ifdef _USE_CITERATOR
+#ifdef USE_CITERATOR
   FOR_START(i, cit1, 0, nellog, 1, cit_step_add, RND) {
   /*for (i = 0; i < nellog; i++) {*/
-    /*fprintf(stderr, "lol\n");*/
     n1 = ntemp*2;
     n2 = n1;
     FOR_START(iel, cit2, n1, nelt+1, n1, cit_step_add, RND) {
     /*for (iel = n1; iel <= nelt; iel += n1) {*/
-      /*fprintf(stderr, "lal\n");*/
       ahead = frontier[iel-ntemp-1];
       FOR_START(ii, cit3, ntemp-1, -1, -1, cit_step_add, RND) {
       /*for (ii = ntemp-1; ii >= 0; ii--) {*/
@@ -400,11 +397,11 @@ void parallel_add(int frontier[])
     ntemp1 = n2-nelt;
     if (ntemp1 < ntemp) {
       ahead = frontier[n2-ntemp-1];
-      FOR_START(ii, cit3, ntemp-1, ntemp1-1, -1, cit_step_add, RND) {
+      FOR_START(ii, cit2, ntemp-1, ntemp1-1, -1, cit_step_add, RND) {
       /*for (ii = ntemp-1; ii >= ntemp1; ii--) {*/
         frontier[n2-ii-1] = frontier[n2-ii-1]+ahead;
       }
-      FOR_END(cit3);
+      FOR_END(cit2);
     }
 
     ntemp = n1;
