@@ -63,7 +63,7 @@ void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end, int step
     (*data)->nindices = 0;
   }
 
-  if((*data)->nindices < 1) {
+  if((*data)->nindices < 2) {
     fprintf(stderr, "warning (%s,%lld): ADT CIterator: loop iterations: %lld\n",
         file, line, (*data)->nindices);
   }
