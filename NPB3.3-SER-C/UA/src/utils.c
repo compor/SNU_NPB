@@ -381,7 +381,7 @@ void parallel_add(int frontier[])
   /*for (i = 0; i < nellog; i++) {*/
     n1 = ntemp*2;
     n2 = n1;
-    FOR_START(iel, cit2, n1, nelt+1, n1, cit_step_add, RND) {
+    FOR_START(iel, cit2, n1, nelt+1, n1, cit_step_add, FWD) {
     /*for (iel = n1; iel <= nelt; iel += n1) {*/
       ahead = frontier[iel-ntemp-1];
       FOR_START(ii, cit3, ntemp-1, -1, -1, cit_step_add, RND) {

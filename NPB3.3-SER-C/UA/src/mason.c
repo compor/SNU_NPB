@@ -1493,7 +1493,7 @@ void mortar()
   // if_1_edge[iel][n]=true indicates that the size of iel is smaller than
   //            that of its neighbor connected, neighbored by edge n only
 #ifdef USE_CITERATOR
-  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, FWD) {
+  FOR_START(iel, cit1, 0, nelt, 1, cit_step_add, RND) {
   /*for (iel = 0; iel < nelt; iel++) {*/
     newc[iel] = 0;
     newe[iel] = 0;
