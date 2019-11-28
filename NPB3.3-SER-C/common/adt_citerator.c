@@ -51,12 +51,20 @@ void cit_create(struct cit_data **data, cit_int_t start, cit_int_t end, int step
     if((end - start) % abs((*data)->stepfunc(*data))) {
       (*data)->nindices++;
     }
+
+    if ((*data)->stepfunc(*data) <= 0) {
+      (*data)->nindices = 0;
+    }
   }
   else if (start > end) {
-    (*data)->nindices = (start - end) / abs((*data)->stepfunc(*data));
+    (*data)->nindices = (end - start) / (*data)->stepfunc(*data);
 
-    if((start - end) % abs((*data)->stepfunc(*data))) {
+    if((end - start) % (*data)->stepfunc(*data)) {
       (*data)->nindices++;
+    }
+
+    if ((*data)->stepfunc(*data) >= 0) {
+      (*data)->nindices = 0;
     }
   }
   else {
