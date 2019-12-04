@@ -1110,8 +1110,20 @@ int32 ComputeGivenGroupbys(ADC_VIEW_CNTL *adccntlp){
    uint32 selection_viewsize[2];
    char ttout[16];
 
+#ifdef USE_CITERATOR
+  struct cit_data *cit1;
+#endif // USE_CITERATOR
+
    while (fread(&binRepTuple, 8, 1, adccntlp->groupbyFile )){
+#ifdef USE_CITERATOR
+   FOR_START(i, cit1, 0, adccntlp->nm, 1, cit_step_add, RND) {
+     adccntlp->checksums[i]=0;
+   }
+   FOR_END(cit1);
+#else
      for(i = 0; i < adccntlp->nm; i++) adccntlp->checksums[i]=0;
+#endif // USE_CITERATOR
+
      nViews++;
      swap8(&binRepTuple);
 
@@ -1207,8 +1219,15 @@ int32 ComputeGivenGroupbys(ADC_VIEW_CNTL *adccntlp){
      FSEEK(adccntlp->fileOfChunks, 0L, SEEK_SET);
      FSEEK(adccntlp->inpf, 0L, SEEK_SET);
 #endif /* IN_CORE */
+#ifdef USE_CITERATOR
+   FOR_START(i, cit1, 0, adccntlp->nm, 1, cit_step_add, RND) {
+       adccntlp->totchs[i]+=adccntlp->checksums[i];
+   }
+   FOR_END(cit1);
+#else
      for( i = 0; i < adccntlp->nm; i++)
        adccntlp->totchs[i]+=adccntlp->checksums[i];
+#endif
      selection_viewsize[1] = adccntlp->nViewRows;
      fwrite(selection_viewsize, 8, 1, adccntlp->viewSizesFile);
      adccntlp->totalViewFileSize +=

@@ -37,7 +37,7 @@
 #include "header.h"
 
 //---------------------------------------------------------------------
-// verification routine                         
+// verification routine
 //---------------------------------------------------------------------
 void verify(int no_time_steps, char *Class, logical *verified)
 {
@@ -72,7 +72,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
   }
 
   //---------------------------------------------------------------------
-  // reference data for 12X12X12 grids after 100 time steps, 
+  // reference data for 12X12X12 grids after 100 time steps,
   // with DT = 1.50e-02
   //---------------------------------------------------------------------
   if ( (grid_points[0] == 12) && (grid_points[1] == 12) &&
@@ -99,7 +99,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
     xceref[4] = 3.4177666183390531e-05;
 
     //---------------------------------------------------------------------
-    // reference data for 36X36X36 grids after 400 time steps, 
+    // reference data for 36X36X36 grids after 400 time steps,
     // with DT = 1.5e-03
     //---------------------------------------------------------------------
   } else if ( (grid_points[0] == 36) && (grid_points[1] == 36) &&
@@ -126,7 +126,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
     xceref[4] = 0.1212845639773e-03;
 
     //---------------------------------------------------------------------
-    // reference data for 64X64X64 grids after 400 time steps, 
+    // reference data for 64X64X64 grids after 400 time steps,
     // with DT = 1.5e-03
     //---------------------------------------------------------------------
   } else if ( (grid_points[0] == 64) && (grid_points[1] == 64) &&
@@ -264,7 +264,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
   }
 
   //---------------------------------------------------------------------
-  // verification test for residuals if gridsize is one of 
+  // verification test for residuals if gridsize is one of
   // the defined grid sizes above (class .ne. 'U')
   //---------------------------------------------------------------------
 
@@ -283,10 +283,10 @@ void verify(int no_time_steps, char *Class, logical *verified)
     printf(" Verification being performed for class %c\n", *Class);
     printf(" accuracy setting for epsilon = %20.13E\n", epsilon);
     *verified = (fabs(dt-dtref) <= epsilon);
-    if (!(*verified)) {  
+    if (!(*verified)) {
       *Class = 'U';
       printf(" DT does not match the reference value of %15.8E\n", dtref);
-    } 
+    }
   } else {
     printf(" Unknown class\n");
   }
@@ -315,7 +315,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
   } else {
     printf(" RMS-norms of solution error\n");
   }
-        
+
   for (m = 0; m < 5; m++) {
     if (*Class == 'U') {
       printf("          %2d%20.13E\n", m+1, xce[m]);
@@ -328,7 +328,7 @@ void verify(int no_time_steps, char *Class, logical *verified)
           m+1, xce[m], xceref[m], xcedif[m]);
     }
   }
-        
+
   if (*Class == 'U') {
     printf(" No reference values provided\n");
     printf(" No verification performed\n");
