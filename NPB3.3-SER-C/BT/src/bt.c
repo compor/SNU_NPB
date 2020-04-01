@@ -81,12 +81,14 @@ double cuf[PROBLEM_SIZE+1];
 double q  [PROBLEM_SIZE+1];
 double ue [PROBLEM_SIZE+1][5];
 double buf[PROBLEM_SIZE+1][5];
+#pragma omp threadprivate(cuf,q,ue,buf)
 
 /* common /work_lhs/ */
 double fjac[PROBLEM_SIZE+1][5][5];
 double njac[PROBLEM_SIZE+1][5][5];
 double lhs [PROBLEM_SIZE+1][3][5][5];
 double tmp1, tmp2, tmp3;
+#pragma omp threadprivate(fjac,njac,lhs,tmp1,tmp2,tmp3)
 
 
 int main(int argc, char *argv[])

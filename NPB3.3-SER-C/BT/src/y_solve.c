@@ -66,6 +66,7 @@ void y_solve()
   // Compute the indices for storing the tri-diagonal matrix;
   // determine a (labeled f) and n jacobians for cell c
   //---------------------------------------------------------------------
+  #pragma omp parallel for default(shared) shared(jsize) private(i,j,k,m,n)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (i = 1; i <= grid_points[0]-2; i++) {
       for (j = 0; j <= jsize; j++) {

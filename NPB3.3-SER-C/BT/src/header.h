@@ -103,6 +103,7 @@ extern double cuf[PROBLEM_SIZE+1];
 extern double q  [PROBLEM_SIZE+1];
 extern double ue [PROBLEM_SIZE+1][5];
 extern double buf[PROBLEM_SIZE+1][5];
+#pragma omp threadprivate(cuf,q,ue,buf)
       
 
 //-----------------------------------------------------------------------

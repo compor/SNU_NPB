@@ -48,6 +48,7 @@ void initialize()
   // to compute the whole thing with a simple loop. Make sure those 
   // values are nonzero by initializing the whole thing here. 
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m)
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
       for (i = 0; i <= grid_points[0]-1; i++) {
@@ -61,6 +62,8 @@ void initialize()
   //---------------------------------------------------------------------
   // first store the "interpolated" values everywhere on the grid    
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) \
+              private(i,j,k,m,zeta,eta,xi,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -102,6 +105,8 @@ void initialize()
   //---------------------------------------------------------------------
   i = 0;
   xi = 0.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(i,xi) private(j,k,m,zeta,eta,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -118,6 +123,8 @@ void initialize()
   //---------------------------------------------------------------------
   i = grid_points[0]-1;
   xi = 1.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(i,xi) private(j,k,m,zeta,eta,temp)
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -134,6 +141,8 @@ void initialize()
   //---------------------------------------------------------------------
   j = 0;
   eta = 0.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(j,eta) private(i,k,m,zeta,xi,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
     for (i = 0; i <= grid_points[0]-1; i++) {
@@ -150,6 +159,8 @@ void initialize()
   //---------------------------------------------------------------------
   j = grid_points[1]-1;
   eta = 1.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(j,eta) private(i,k,m,zeta,xi,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)(k) * dnzm1;
     for (i = 0; i <= grid_points[0]-1; i++) {
@@ -166,6 +177,8 @@ void initialize()
   //---------------------------------------------------------------------
   k = 0;
   zeta = 0.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(k,zeta) private(i,j,m,eta,xi,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (j = 0; j <= grid_points[1]-1; j++) {
     eta = (double)(j) * dnym1;
     for (i =0; i <= grid_points[0]-1; i++) {
@@ -182,6 +195,8 @@ void initialize()
   //---------------------------------------------------------------------
   k = grid_points[2]-1;
   zeta = 1.0;
+  #pragma omp parallel for schedule(static) default(shared) \
+              firstprivate(k,zeta) private(i,j,m,eta,xi,ix,iy,iz,Pface,Pxi,Peta,Pzeta,temp)
   for (j = 0; j <= grid_points[1]-1; j++) {
     eta = (double)(j) * dnym1;
     for (i = 0; i <= grid_points[0]-1; i++) {

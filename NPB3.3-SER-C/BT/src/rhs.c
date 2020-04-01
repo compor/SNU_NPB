@@ -44,6 +44,8 @@ void compute_rhs()
   // compute the reciprocal of density, and the kinetic energy, 
   // and the speed of sound.
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,uijk,up1,um1,\
+                                       vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
       for (i = 0; i <= grid_points[0]-1; i++) {
@@ -66,6 +68,7 @@ void compute_rhs()
   // this forcing term is known, we can store it on the whole grid
   // including the boundary                   
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m)
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
       for (i = 0; i <= grid_points[0]-1; i++) {
@@ -80,6 +83,8 @@ void compute_rhs()
   //---------------------------------------------------------------------
   // compute xi-direction fluxes 
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,uijk,up1,um1,\
+                                       vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 1; i <= grid_points[0]-2; i++) {
@@ -187,6 +192,8 @@ void compute_rhs()
   //---------------------------------------------------------------------
   // compute eta-direction fluxes 
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,uijk,up1,um1,\
+                                       vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 1; i <= grid_points[0]-2; i++) {
@@ -293,6 +300,8 @@ void compute_rhs()
   //---------------------------------------------------------------------
   // compute zeta-direction fluxes 
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,uijk,up1,um1,\
+                                       vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 1; i <= grid_points[0]-2; i++) {
@@ -349,6 +358,7 @@ void compute_rhs()
   // add fourth order zeta-direction dissipation                
   //---------------------------------------------------------------------
   k = 1;
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(k) private(i,j,m)
   for (j = 1; j <= grid_points[1]-2; j++) {
     for (i = 1; i <= grid_points[0]-2; i++) {
       for (m = 0; m < 5; m++) {
@@ -360,6 +370,7 @@ void compute_rhs()
   }
 
   k = 2;
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(k) private(i,j,m)
   for (j = 1; j <= grid_points[1]-2; j++) {
     for (i = 1; i <= grid_points[0]-2; i++) {
       for (m = 0; m < 5; m++) {
@@ -370,6 +381,7 @@ void compute_rhs()
     }
   }
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m)
   for (k = 3; k <= grid_points[2]-4; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 1; i <= grid_points[0]-2; i++) {
@@ -384,6 +396,7 @@ void compute_rhs()
   }
 
   k = grid_points[2]-3;
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(k) private(i,j,m)
   for (j = 1; j <= grid_points[1]-2; j++) {
     for (i = 1; i <= grid_points[0]-2; i++) {
       for (m = 0; m < 5; m++) {
@@ -395,6 +408,7 @@ void compute_rhs()
   }
 
   k = grid_points[2]-2;
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(k) private(i,j,m)
   for (j = 1; j <= grid_points[1]-2; j++) {
     for (i = 1; i <= grid_points[0]-2; i++) {
       for (m = 0; m < 5; m++) {
@@ -406,6 +420,7 @@ void compute_rhs()
   }
   if (timeron) timer_stop(t_rhsz);
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 1; i <= grid_points[0]-2; i++) {

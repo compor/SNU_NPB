@@ -67,6 +67,7 @@ void x_solve()
   //---------------------------------------------------------------------
   // determine a (labeled f) and n jacobians
   //---------------------------------------------------------------------
+  #pragma omp parallel for default(shared) shared(isize) private(i,j,k,m,n)
   for (k = 1; k <= grid_points[2]-2; k++) {
     for (j = 1; j <= grid_points[1]-2; j++) {
       for (i = 0; i <= isize; i++) {
