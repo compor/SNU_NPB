@@ -55,6 +55,7 @@ void erhs()
   double u21jm1, u31jm1, u41jm1, u51jm1;
   double u21km1, u31km1, u41km1, u51km1;
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m)
   for (k = 0; k < nz; k++) {
     for (j = 0; j < ny; j++) {
       for (i = 0; i < nx; i++) {
@@ -65,6 +66,10 @@ void erhs()
     }
   }
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,xi,eta,zeta,tmp,q,\
+              flux,u51im1,u41im1,u31im1,u21im1,u51i,u41i,u31i,u21i,u21,\
+                   u51jm1,u41jm1,u31jm1,u21jm1,u51j,u41j,u31j,u21j,u31,\
+                   u51km1,u41km1,u31km1,u21km1,u51k,u41k,u31k,u21k,u41)
   for (k = 0; k < nz; k++) {
     zeta = ( (double)k ) / ( nz - 1 );
     for (j = 0; j < ny; j++) {
@@ -93,6 +98,10 @@ void erhs()
   //---------------------------------------------------------------------
   // xi-direction flux differences
   //---------------------------------------------------------------------
+    #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,xi,eta,zeta,tmp,q,\
+              flux,u51im1,u41im1,u31im1,u21im1,u51i,u41i,u31i,u21i,u21,\
+                   u51jm1,u41jm1,u31jm1,u21jm1,u51j,u41j,u31j,u21j,u31,\
+                   u51km1,u41km1,u31km1,u21km1,u51k,u41k,u31k,u21k,u41)
   for (k = 1; k < nz - 1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = 0; i < nx; i++) {
@@ -210,6 +219,10 @@ void erhs()
   //---------------------------------------------------------------------
   // eta-direction flux differences
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,xi,eta,zeta,tmp,q,\
+              flux,u51im1,u41im1,u31im1,u21im1,u51i,u41i,u31i,u21i,u21,\
+                   u51jm1,u41jm1,u31jm1,u21jm1,u51j,u41j,u31j,u21j,u31,\
+                   u51km1,u41km1,u31km1,u21km1,u51k,u41k,u31k,u21k,u41)
   for (k = 1; k < nz - 1; k++) {
     for (i = ist; i < iend; i++) {
       for (j = 0; j < ny; j++) {
@@ -328,6 +341,10 @@ void erhs()
   //---------------------------------------------------------------------
   // zeta-direction flux differences
   //---------------------------------------------------------------------
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,xi,eta,zeta,tmp,q,\
+              flux,u51im1,u41im1,u31im1,u21im1,u51i,u41i,u31i,u21i,u21,\
+                   u51jm1,u41jm1,u31jm1,u21jm1,u51j,u41j,u31j,u21j,u31,\
+                   u51km1,u41km1,u31km1,u21km1,u51k,u41k,u31k,u21k,u41)
   for (j = jst; j < jend; j++) {
     for (i = ist; i < iend; i++) {
       for (k = 0; k < nz; k++) {

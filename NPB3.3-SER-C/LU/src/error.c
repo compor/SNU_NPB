@@ -53,6 +53,7 @@ void error()
     errnm[m] = 0.0;
   }
 
+  #pragma omp parallel for default(shared) private(i,j,k,m,tmp,u000ijk) reduction(+:errnm)
   for (k = 1; k < nz-1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = ist; i < iend; i++) {

@@ -50,6 +50,9 @@ void setiv()
   double ue_1jk[5], ue_nx0jk[5], ue_i1k[5];
   double ue_iny0k[5], ue_ij1[5], ue_ijnz[5];
 
+  #pragma omp parallel for default(shared) private(i,j,k,m,pxi,peta,pzeta, \
+              xi,eta,zeta,ue_ijnz,ue_ij1,ue_iny0k,ue_i1k,ue_nx0jk,ue_1jk)  \
+              shared(nx0,ny0,nz)
   for (k = 1; k < nz - 1; k++) {
     zeta = ( (double)k ) / (nz-1);
     for (j = 1; j < ny - 1; j++) {

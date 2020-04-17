@@ -48,23 +48,26 @@ void l2norm (int ldx, int ldy, int ldz, int nx0, int ny0, int nz0,
   //---------------------------------------------------------------------
   // local variables
   //---------------------------------------------------------------------
+  double sum_local[5];
   int i, j, k, m;
 
   for (m = 0; m < 5; m++) {
-    sum[m] = 0.0;
+    sum[m] = sum_local[m] = 0.0;
   }
 
+  #pragma omp parallel for default(shared) private(i,j,k,m) reduction(+:sum_local)
   for (k = 1; k < nz0-1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = ist; i < iend; i++) {
         for (m = 0; m < 5; m++) {
-          sum[m] = sum[m] + v[k][j][i][m] * v[k][j][i][m];
+          sum_local[m] += + v[k][j][i][m] * v[k][j][i][m];
         }
       }
     }
   }
 
   for (m = 0; m < 5; m++) {
+    sum[m] = sum_local[m];
     sum[m] = sqrt ( sum[m] / ( (nx0-2)*(ny0-2)*(nz0-2) ) );
   }
 }

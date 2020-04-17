@@ -64,6 +64,7 @@ void blts (int ldmx, int ldmy, int ldmz, int nx, int ny, int nz, int k,
   double (*vk)[ldmx/2*2+1][5] = v[k];
   double (*vkm1)[ldmx/2*2+1][5] = v[k-1];
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,m)
   for (j = jst; j < jend; j++) {
     for (i = ist; i < iend; i++) {
       for (m = 0; m < 5; m++) {

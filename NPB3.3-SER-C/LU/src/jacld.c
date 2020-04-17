@@ -51,6 +51,8 @@ void jacld(int k)
   c1345 = C1 * C3 * C4 * C5;
   c34 = C3 * C4;
 
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,tmp2) \
+                shared(ist,iend,jst,jend)
   for (j = jst; j < jend; j++) {
     for (i = ist; i < iend; i++) {
       //---------------------------------------------------------------------

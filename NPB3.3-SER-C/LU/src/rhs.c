@@ -54,6 +54,12 @@ void rhs()
   double u21km1, u31km1, u41km1, u51km1;
 
   if (timeron) timer_start(t_rhs);
+  #pragma omp parallel default(shared) private(i,j,k,m,q,flux,tmp,utmp,rtmp,\
+              u51im1,u41im1,u31im1,u21im1,u51i,u41i,u31i,u21i,u21, \
+              u51jm1,u41jm1,u31jm1,u21jm1,u51j,u41j,u31j,u21j,u31, \
+              u51km1,u41km1,u31km1,u21km1,u51k,u41k,u31k,u21k,u41)
+  {
+  #pragma omp for schedule(static)
   for (k = 0; k < nz; k++) {
     for (j = 0; j < ny; j++) {
       for (i = 0; i < nx; i++) {
@@ -70,10 +76,12 @@ void rhs()
     }
   }
 
+  #pragma omp master
   if (timeron) timer_start(t_rhsx);
   //---------------------------------------------------------------------
   // xi-direction flux differences
   //---------------------------------------------------------------------
+  #pragma omp for schedule(static) nowait
   for (k = 1; k < nz - 1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = 0; i < nx; i++) {
@@ -189,12 +197,16 @@ void rhs()
 
     }
   }
+  #pragma omp master
+  {
   if (timeron) timer_stop(t_rhsx);
 
   if (timeron) timer_start(t_rhsy);
+  }
   //---------------------------------------------------------------------
   // eta-direction flux differences
   //---------------------------------------------------------------------
+  #pragma omp for schedule(static)
   for (k = 1; k < nz - 1; k++) {
     for (i = ist; i < iend; i++) {
       for (j = 0; j < ny; j++) {
@@ -318,12 +330,16 @@ void rhs()
     }
 
   }
+  #pragma omp master
+  {
   if (timeron) timer_stop(t_rhsy);
 
   if (timeron) timer_start(t_rhsz);
+  }
   //---------------------------------------------------------------------
   // zeta-direction flux differences
   //---------------------------------------------------------------------
+  #pragma omp for schedule(static) nowait
   for (j = jst; j < jend; j++) {
     for (i = ist; i < iend; i++) {
       for (k = 0; k < nz; k++) {
@@ -442,6 +458,7 @@ void rhs()
           - dssp * (         utmp[nz-4][m]
                      - 4.0 * utmp[nz-3][m]
                      + 5.0 * utmp[nz-2][m] );
+      }
       }
     }
   }

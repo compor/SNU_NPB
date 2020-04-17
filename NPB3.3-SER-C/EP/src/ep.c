@@ -66,6 +66,7 @@
 #define S         271828183.0
 
 static double x[2*NK];
+#pragma omp threadprivate(x)
 static double q[NQ]; 
 
 
@@ -124,6 +125,7 @@ int main()
 
   vranlc(0, &dum[0], dum[1], &dum[2]);
   dum[0] = randlc(&dum[1], dum[2]);
+  #pragma omp parallel for default(shared) private(i)
   for (i = 0; i < 2 * NK; i++) {
     x[i] = -1.0e99;
   }
@@ -165,6 +167,7 @@ int main()
 
   k_offset = -1;
 
+  #pragma omp parallel for default(shared) private(k,kk,t1,t2,t3,t4,i,ik,x1,x2,l) reduction(+:sx,sy,q)
   for (k = 1; k <= np; k++) {
     kk = k_offset + k; 
     t1 = S;
