@@ -45,7 +45,7 @@ void compute_rhs()
   // compute the reciprocal of density, and the kinetic energy, 
   // and the speed of sound. 
   //---------------------------------------------------------------------
-  #pragma omp parallel for default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
                                        up1,um1,vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -74,7 +74,7 @@ void compute_rhs()
   // this forcing term is known, we can store it on the whole grid
   // including the boundary                   
   //---------------------------------------------------------------------
-  #pragma omp parallel for default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
                                        up1,um1,vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 0; k <= grid_points[2]-1; k++) {
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -90,7 +90,7 @@ void compute_rhs()
   // compute xi-direction fluxes 
   //---------------------------------------------------------------------
   if (timeron) timer_start(t_rhsx);
-  #pragma omp parallel for default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
                                        up1,um1,vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
@@ -182,7 +182,7 @@ void compute_rhs()
   // compute eta-direction fluxes 
   //---------------------------------------------------------------------
   if (timeron) timer_start(t_rhsy);
-  #pragma omp parallel for default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
                                        up1,um1,vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
@@ -278,7 +278,7 @@ void compute_rhs()
   // compute zeta-direction fluxes 
   //---------------------------------------------------------------------
   if (timeron) timer_start(t_rhsz);
-  #pragma omp parallel for default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
+  #pragma omp parallel for schedule(static) default(shared) private(i,j,k,m,rho_inv,aux,uijk, \
                                        up1,um1,vijk,vp1,vm1,wijk,wp1,wm1)
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
@@ -325,7 +325,7 @@ void compute_rhs()
   // add fourth order zeta-direction dissipation                
   //---------------------------------------------------------------------
   k = 1;
-  #pragma omp parallel for default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
   for (j = 1; j <= ny2; j++) {
     for (i = 1; i <= nx2; i++) {
       for (m = 0; m < 5; m++) {
@@ -336,7 +336,7 @@ void compute_rhs()
   }
 
   k = 2;
-  #pragma omp parallel for default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
   for (j = 1; j <= ny2; j++) {
     for (i = 1; i <= nx2; i++) {
       for (m = 0; m < 5; m++) {
@@ -347,7 +347,7 @@ void compute_rhs()
     }
   }
 
-  #pragma omp parallel for default(shared) firstprivate(dssp,ny2,nx2) private(k,i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(dssp,ny2,nx2) private(k,i,j,m)
   for (k = 3; k <= nz2-2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
@@ -362,7 +362,7 @@ void compute_rhs()
   }
 
   k = nz2-1;
-  #pragma omp parallel for default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
   for (j = 1; j <= ny2; j++) {
     for (i = 1; i <= nx2; i++) {
       for (m = 0; m < 5; m++) {
@@ -374,7 +374,7 @@ void compute_rhs()
   }
 
   k = nz2;
-  #pragma omp parallel for default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(dssp,ny2,nx2,k) private(i,j,m)
   for (j = 1; j <= ny2; j++) {
     for (i = 1; i <= nx2; i++) {
       for (m = 0; m < 5; m++) {
@@ -385,7 +385,7 @@ void compute_rhs()
   }
   if (timeron) timer_stop(t_rhsz);
 
-  #pragma omp parallel for default(shared) firstprivate(nz2,ny2,nx2,dt) private(k,i,j,m)
+  #pragma omp parallel for schedule(static) default(shared) firstprivate(nz2,ny2,nx2,dt) private(k,i,j,m)
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
