@@ -477,7 +477,7 @@ static void conj_grad(int colidx[],
     //       The unrolled-by-8 version below is significantly faster
     //       on the Cray t3d - overall speed of code is 1.5 times faster.
 
-#ifndef USE_ICC_PAR
+#ifdef USE_ICC_PAR
     #pragma omp parallel for schedule(static) default(shared) private(j, k)
 #endif
     for (j = 0; j < lastrow - firstrow + 1; j++) {
