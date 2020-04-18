@@ -849,22 +849,34 @@ static void norm2u3(void *or, int n1, int n2, int n3,
   double s, a;
   int i3, i2, i1;
 
-  double dn;
+  double dn, max_rnmu;
 
   if (timeron) timer_start(T_norm2);
   dn = 1.0*nx*ny*nz;
 
   s = 0.0;
-  *rnmu = 0.0;
+  max_rnmu = 0.0;
+  #pragma omp parallel default(shared) private(i1,i2,i3,a) reduction(+:s)
+  {
+    double my_rnmu = 0.0;
+    #pragma omp for nowait
   for (i3 = 1; i3 < n3-1; i3++) {
     for (i2 = 1; i2 < n2-1; i2++) {
       for (i1 = 1; i1 < n1-1; i1++) {
         s = s + pow(r[i3][i2][i1], 2.0);
         a = fabs(r[i3][i2][i1]);
-        if (a > *rnmu) *rnmu = a;
+          my_rnmu = (a > my_rnmu) ? a : my_rnmu;
       }
     }
   }
+
+    if (my_rnmu > max_rnmu) {
+      #pragma omp critical
+      max_rnmu = (my_rnmu > max_rnmu) ? my_rnmu : max_rnmu;
+    }
+  } // end parallel
+
+  *rnmu = max_rnmu;
 
   *rnm2 = sqrt(s / dn);
   if (timeron) timer_stop(T_norm2);
