@@ -45,6 +45,8 @@ void x_solve()
   double ru1, fac1, fac2;
 
   if (timeron) timer_start(t_xsolve);
+  #pragma omp parallel for default(shared) private(i,j,k,i1,i2,m, \
+                                                   ru1,fac1,fac2)
   for (k = 1; k <= nz2; k++) {
     lhsinit(nx2+1, ny2);
 

@@ -42,6 +42,7 @@ void pinvr()
   double r1, r2, r3, r4, r5, t1, t2;
 
   if (timeron) timer_start(t_pinvr);
+  #pragma omp parallel for default(shared) private(i,j,k,r1,r2,r3,r4,r5,t1,t2)
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {

@@ -45,6 +45,8 @@ void z_solve()
   double ru1, fac1, fac2;
 
   if (timeron) timer_start(t_zsolve);
+  #pragma omp parallel for default(shared) private(i,j,k,k1,k2,m, \
+                                                   ru1,fac1,fac2)
   for (j = 1; j <= ny2; j++) {
     lhsinitj(nz2+1, nx2);
 
