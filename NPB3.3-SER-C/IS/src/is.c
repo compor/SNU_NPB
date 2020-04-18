@@ -40,6 +40,8 @@
  *                                                                       *
  *************************************************************************/
 
+#define USE_ICC_PAR
+
 #include "npbparams.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -406,7 +408,9 @@ void full_verify( void )
 /*  Confirm keys correctly sorted: count incorrectly sorted keys, if any */
 
     j = 0;
-    //#pragma omp parallel for reduction(+:j)
+#ifdef USE_ICC_PAR
+    #pragma omp parallel for reduction(+:j)
+#endif
     for( i=1; i<NUM_KEYS; i++ )
         if( key_array[i-1] > key_array[i] )
             j++;
@@ -460,7 +464,9 @@ void rank( int iteration )
         bucket_size[i] = 0;
 
 /*  Determine the number of keys in each bucket */
+#ifndef USE_ICC_PAR
     #pragma omp parallel for schedule(static) private(i) reduction(+:bucket_size)
+#endif
     for( i=0; i<NUM_KEYS; i++ )
         bucket_size[key_array[i] >> shift]++;
 
@@ -500,7 +506,9 @@ void rank( int iteration )
     own indexes to determine how many of each there are: their
     individual population                                       */
 
+#ifndef USE_ICC_PAR
     #pragma omp parallel for schedule(static) private(i)
+#endif
     for( i=0; i<NUM_KEYS; i++ )
         key_buff_ptr[key_buff_ptr2[i]]++;  /* Now they have individual key   */
                                        /* population                     */
