@@ -45,6 +45,8 @@ void transf(double tmor[], double tx[])
   // zero out tx on element boundaries
   col2(tx, (double *)tmult, ntot);
 
+  #pragma omp parallel for default(shared) private(il,j,ig,i,col,ije2,ije1, \
+                       ig4,ig3,ig2,ig1,nnje,il4,il3,il2,il1,iface,ie,tmp)
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       // get the collocation point index of the four local corners on the

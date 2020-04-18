@@ -355,11 +355,13 @@ int main(int argc, char *argv[])
     // compute residual for diffusion term based on intital guess
 
     // compute the left hand side of equation, lapacian t
+    #pragma omp parallel for default(shared) private(ie)
     for (ie = 0; ie < nelt; ie++) {
       laplacian(ta2[ie], ta1[ie], size_e[ie]);
     }
 
     // compute the residual 
+    #pragma omp parallel for default(shared) private(ie,k,j,i)
     for (ie = 0; ie < nelt; ie++) {
       for (k = 0; k < LX1; k++) {
         for (j = 0; j < LX1; j++) {
@@ -377,6 +379,7 @@ int main(int argc, char *argv[])
     // apply boundary condition: zero out the residual on domain boundaries
 
     // apply boundary conidtion to trhs
+    #pragma omp parallel for default(shared) private(ie,iside)
     for (ie = 0; ie < nelt; ie++) {
       for (iside = 0; iside < NSIDES; iside++) {
         if (cbc[ie][iside] == 0) {

@@ -237,6 +237,8 @@ void geom1()
     xfrac[i] = zgm1[i]*0.5 + 0.5;
   }
 
+  #pragma omp parallel for default(shared) private(isize,temp,temp1,temp2, \
+                                                   k,j,i,dtemp)
   for (isize = 0; isize < REFINE_MAX; isize++) {
     temp = pow(2.0, (-isize-2));
     dtemp = 1.0/temp;
@@ -258,6 +260,7 @@ void geom1()
     }
   }
 
+  #pragma omp parallel for default(shared) private(ntemp,i,j,iel)
   for (iel = 0; iel < LELT; iel++) {
     ntemp = LX1*LX1*LX1*iel;
     for (j = 0; j < LX1; j++) {
@@ -307,11 +310,13 @@ void prepwork()
   rdlog2 = 1.0/log(2.0);
 
   // calculate the refinement levels of each element
+  #pragma omp parallel for default(shared) private(iel)
   for (iel = 0; iel < nelt; iel++) {
     size_e[iel] = (int)(-log(xc[iel][1]-xc[iel][0])*rdlog2+1.e-8) - 1;
   }
 
   // mask matrix for element boundary
+  #pragma omp parallel for default(shared) private(iel,iface)
   for (iel = 0; iel < nelt; iel++) {
     r_init(tmult[iel][0][0], NXYZ, 1.0);
     for (iface = 0; iface < NSIDES; iface++) {
@@ -322,6 +327,7 @@ void prepwork()
   // masks for domain boundary at mortar 
   r_init(tmmor, nmor, 1.0);
 
+  #pragma omp parallel for default(shared) private(i,j,iel,iface,cb)
   for (iel = 0; iel < nelt; iel++) {
     for (iface = 0; iface < NSIDES; iface++) {
       cb = cbc[iel][iface];

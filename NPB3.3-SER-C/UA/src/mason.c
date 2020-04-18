@@ -80,6 +80,8 @@ void mortar()
   count = -1;
 
   // assign mortar point indices to element vertices
+  #pragma omp parallel for default(shared) private(iel,sumcb,ij1,ij2, \
+                           cb,cb1,cb2,ntemp,ntemp1)
   for (iel = 0; iel < nelt; iel++) {
 
     // first calculate how many new mortar indices will be generated for 
@@ -757,6 +759,7 @@ void mortar()
   // is shared by several elements, the mortar point index of it will only
   // be generated on the element with the lowest element index. 
 
+  //#pragma omp parallel for default(shared) private(iel,i,count) // TODO problematic case due to iterator
   for (iel = 0; iel < nelt; iel++) {
     // compute the starting vertex mortar point index in element iel
     front[iel] = front[iel]-newc[iel];
@@ -802,6 +805,8 @@ void mortar()
   //            to the right or top part of edge n.
   // if_1_edge[iel][n]=true indicates that the size of iel is smaller than 
   //            that of its neighbor connected, neighbored by edge n only
+  #pragma omp parallel for default(shared) private(iel,cb1,cb2,cb3,cb4,cb5 \
+                                                  ,cb6,ntemp)
   for (iel = 0; iel < nelt; iel++) {
     newc[iel] = 0;
     newe[iel] = 0;
@@ -1353,6 +1358,8 @@ void mortar()
   // Generate (potentially in parallel) new mortar point indices on 
   // each conforming element face. On each face, first visit all 
   // conforming edges, and then the face interior.
+  #pragma omp parallel for default(shared) private(iel,count,i,cb1,ne, \
+              space,ie,edge_g,face2,ie2,ntemp,ii,jj,jface,cb,mor_v)
   for (iel = 0; iel < nelt; iel++) {
     front[iel] = front[iel]-newc[iel];
     count = nvertex+front[iel];
@@ -1469,6 +1476,8 @@ void mortar()
 
   // for edges on nonconforming faces, copy the mortar points indices
   // from neighbors.
+  #pragma omp parallel for default(shared) \
+              private(iel,i,cb,jface,iii,jjj,ntemp,ii,jj)
   for (iel = 0; iel < nelt; iel++) {
     for (i = 0; i < 6; i++) {
       cb = cbc[iel][i];

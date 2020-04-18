@@ -67,6 +67,8 @@ void convect(logical ifmortar)
     zz0[substep] = Z00+VELZ*subtime[substep];
   }
 
+  #pragma omp parallel for default(shared) private(rk4,rk3,rk2,temp,rk1,dtx3,\
+          dtx2,dtx1,iside,ip,sum,src,r2,i,j,k,isize,iel,tempa,xloc,yloc,zloc)
   for (iel = 0; iel < nelt; iel++) {
     isize = size_e[iel];
     /*
@@ -240,6 +242,7 @@ void convect(logical ifmortar)
   }
   if (timeron) timer_stop(t_transfb_c);
 
+  #pragma omp parallel for default(shared) private(i)
   for (i = 0; i < nmor; i++) {
     tmort[i] = tmort[i] / mormult[i];
   }

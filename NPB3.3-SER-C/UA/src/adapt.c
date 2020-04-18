@@ -141,6 +141,7 @@ void adaptation(logical *ifmortar, int step)
   //                element index
   // id_to_mt(iel)  takes as argument the actual element index and returns the
   //                morton index
+  #pragma omp parallel for default(shared) private(miel,iel)
   for (miel = 0; miel < nelt; miel++) {
     iel = mt_to_id[miel];
     id_to_mt[iel] = miel;
@@ -185,6 +186,8 @@ static void do_coarsen(logical *if_coarsen, int *icoarsen, int neltold)
 
   // Check whether the potential coarsening will make neighbor, 
   // and neighbor's neighbor....break grid restriction
+  #pragma omp parallel for default(shared) private(miel,iel,ic, \
+          ntp,parent,test,test1,i,test2,test3) shared(if_coarsen)
   for (miel = 0; miel < nelt; miel++) {
     ifcoa[miel] = false;
     front[miel] = 0;
@@ -266,6 +269,7 @@ static void do_coarsen(logical *if_coarsen, int *icoarsen, int neltold)
   // element's front-left-bottom-child) to be coarsened.
 
   // create array mt_to_id to convert actual element index to morton index
+  #pragma omp parallel for default(shared) private(miel,iel,mielnew)
   for (miel = 0; miel < nelt; miel++) {
     iel = mt_to_id_old[miel];
     if (!skip[iel]) {
@@ -280,6 +284,7 @@ static void do_coarsen(logical *if_coarsen, int *icoarsen, int neltold)
   }
 
   // perform the coarsening procedure (potentially in parallel)
+  #pragma omp parallel for default(shared) private(index,miel,iel,ntp)
   for (index = 0; index < num_coarsen; index++) {
     miel = action[index];
     iel = mt_to_id_old[miel];
@@ -319,6 +324,7 @@ static void do_refine(logical *ifmortar, int *irefine)
   ncopy(mt_to_id_old, mt_to_id, nelt);
   nr_init(mt_to_id, nelt, -1);
   nr_init(action, nelt, -1);
+  #pragma omp parallel for default(shared) private(miel)
   for (miel = 0; miel < nelt; miel++) {
     if (ich[mt_to_id_old[miel]] != 4) {
       front[miel] = 0;
@@ -335,6 +341,7 @@ static void do_refine(logical *ifmortar, int *irefine)
   num_refine = front[nelt-1];
 
   // action[i] records the morton index of the  i'th element to be refined
+  #pragma omp parallel for default(shared) private(miel,iel)
   for (miel = 0; miel < nelt; miel++) {
     iel = mt_to_id_old[miel];
     if (ich[iel] == 4) {
@@ -345,6 +352,7 @@ static void do_refine(logical *ifmortar, int *irefine)
   // Compute array mt_to_id to convert the element index to morton index.
   // ref_front_id[iel] records how many elements with index less than
   // iel (actual element index, not morton index), will be refined.
+  #pragma omp parallel for default(shared) private(miel,iel,ntemp,mielnew)
   for (miel = 0; miel < nelt; miel++) {
     iel = mt_to_id_old[miel];
     if (ich[iel] == 4) {
@@ -371,6 +379,10 @@ static void do_refine(logical *ifmortar, int *irefine)
     *ifmortar = true;
   }
 
+  #pragma omp parallel for default(shared) private(index,miel,mielnew,iel, \
+              nelt,treetemp,xctemp,yctemp,zctemp,cbctemp,sjetemp,ta1temp, \
+              ntemp,xleft,xright,xhalf,yleft,yright,yhalf,zleft,zright,\
+              zhalf,ndir,facedir,jface,cb,le,ne,n1,n2,i,j,k)
   for (index = 0; index < num_refine; index++) {
     // miel is old morton index and mielnew is new morton index after refinement.
     miel = action[index];
@@ -700,6 +712,8 @@ static void find_coarsen(logical *if_coarsen, int neltold)
 
   *if_coarsen = false;
 
+  #pragma omp parallel for default(shared) private(iel,i,iftemp) \
+                       shared(if_coarsen)
   for (iel = 0; iel < neltold; iel++) {
     if (!skip[iel]) {
       ich[iel] = 0;
@@ -732,6 +746,7 @@ static void find_refine(logical *if_refine)
 
   *if_refine = false;
 
+  #pragma omp parallel for default(shared) private(iel) shared(if_refine)
   for (iel = 0; iel < nelt; iel++) {
     ich[iel] = 0;
     if (iftouch(iel)) {
@@ -756,6 +771,8 @@ static void check_refine(logical *ifrepeat)
 
   *ifrepeat = false;
 
+  #pragma omp parallel for default(shared) private(iel,i,jface,ntemp, \
+                           iface,nntemp) shared(ifrepeat)
   for (iel = 0; iel < nelt; iel++) {
     // if iel is marked to be refined
     if (ich[iel] == 4) {

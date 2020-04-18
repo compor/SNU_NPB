@@ -45,6 +45,7 @@ void move()
   nr_init((int *)sje_new, n1, -1);
   nr_init((int *)ijel_new, n2, -1);
 
+  #pragma omp parallel for default(shared) private(iel,i,iside,jface,cb,ntemp,ii1,ii2)
   for (iel = 0; iel < nelt; iel++) {
     i = mt_to_id[iel];
     treenew[iel] = tree[i];
@@ -102,6 +103,7 @@ void move()
   ncopy((int *)tree, (int *)treenew, nelt);
   copy((double *)ta1, (double *)ta2, NXYZ*nelt);
 
+  #pragma omp parallel for default(shared) private(iel)
   for (iel = 0; iel < nelt; iel++) {
     mt_to_id[iel] = iel;
     id_to_mt[iel] = iel;

@@ -60,6 +60,7 @@ void diffusion(logical ifmortar)
   // pdiff and pmorx are combined to generate q0 in the CG algorithm.
   // rho1 is  (qm,rm) in the CG algorithm.
   rho1 = 0.0;
+  #pragma omp parallel for default(shared) private(im,ie,i,j,k) reduction(+:rho1)
   for (ie = 0; ie < nelt; ie++) {
     for (k = 0; k < LX1; k++) {
       for (j = 0; j < LX1; j++) {
@@ -72,6 +73,7 @@ void diffusion(logical ifmortar)
     }
   }
 
+  #pragma omp parallel for default(shared) private(im) reduction(+:rho1)
   for (im = 0; im < nmor; im++) {
     pmorx[im] = dpcmor[im]*rmor[im];
     rho1      = rho1 + rmor[im]*pmorx[im];
@@ -85,6 +87,7 @@ void diffusion(logical ifmortar)
       rho_aux = 0.0;
       // pdiffp and ppmor are combined to generate q_m+1 in the specification
       // rho_aux is (q_m+1,r_m+1)
+      #pragma omp parallel for default(shared) private(im,ie,i,j,k) reduction(+:rho_aux)
       for (ie = 0; ie < nelt; ie++) {
         for (k = 0; k < LX1; k++) {
           for (j = 0; j < LX1; j++) {
@@ -97,6 +100,7 @@ void diffusion(logical ifmortar)
         }
       }
 
+      #pragma omp parallel for default(shared) private(im) reduction(+:rho_aux)
       for (im = 0; im < nmor; im++) {
         ppmor[im] = dpcmor[im]*rmor[im];
         rho_aux = rho_aux + rmor[im]*ppmor[im];
@@ -118,6 +122,7 @@ void diffusion(logical ifmortar)
     if (timeron) timer_stop(t_transf);
 
     // compute pdiffp which is (A theta pm) in the specification
+    #pragma omp parallel for default(shared) private(ie) 
     for (ie = 0; ie < nelt; ie++) {
       laplacian(pdiffp[ie], pdiff[ie], size_e[ie]);
     }
@@ -129,6 +134,7 @@ void diffusion(logical ifmortar)
     if (timeron) timer_stop(t_transfb);
 
     // apply boundary condition
+    #pragma omp parallel for default(shared) private(ie,iside)
     for (ie = 0; ie < nelt; ie++) {
       for (iside = 0; iside < NSIDES; iside++) {
         if(cbc[ie][iside] == 0) {
@@ -139,6 +145,7 @@ void diffusion(logical ifmortar)
 
     // compute cona which is (pm,theta T A theta pm)
     cona = 0.0;
+    #pragma omp parallel for default(shared) private(im,ie,i,j,k) reduction(+:cona)
     for (ie = 0; ie < nelt; ie++) {
       for (k = 0; k < LX1; k++) {
         for (j = 0; j < LX1; j++) {
@@ -150,6 +157,7 @@ void diffusion(logical ifmortar)
       }
     }
 
+    #pragma omp parallel for default(shared) private(im) reduction(+:cona)
     for (im = 0; im < nmor; im++) {
       ppmor[im] = ppmor[im]*tmmor[im];
       cona = cona + pmorx[im]*ppmor[im];

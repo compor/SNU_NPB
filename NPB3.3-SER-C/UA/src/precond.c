@@ -57,6 +57,7 @@ void setuppc()
 
   rdtime = 1.0/dtime;
 
+  #pragma omp parallel for default(shared) private(ie,isize,i,j,k,q) 
   for (ie = 0; ie < nelt; ie++) {
     r_init(dpcelm[ie][0][0], NXYZ, 0.0);
     isize = size_e[ie];
@@ -84,6 +85,7 @@ void setuppc()
 
   // compute preconditioner on mortar points. NOTE:  dpcmor for 
   // nonconforming cases will be corrected in subroutine setpcmo 
+  #pragma omp parallel for default(shared) private(i)
   for (i = 0; i < nmor; i++) {
     dpcmor[i] = 1.0/dpcmor[i];
   }
@@ -126,6 +128,8 @@ void setpcmo_pre()
     }
   }
 
+  #pragma omp parallel for default(shared) private(element_size,i,j,p,temp, \
+                                           mtemp,temp1,p0,ii,jj)
   for (element_size = 0; element_size < REFINE_MAX; element_size++) {
     // for conforming cases
 
@@ -436,6 +440,8 @@ void setpcmo()
   l_init(ifpcmor, nvertex, false);
   l_init((logical *)edgevis, 24*nelt, false);
 
+  #pragma omp parallel for default(shared) private(iel,iside,sizei, \
+                           imor,_enum,face2,nb1,nb2,i,j,nn1,nn2)
   for (iel = 0; iel < nelt; iel++) {
     for (iside = 0; iside < NSIDES; iside++) {
       // for nonconforming faces
