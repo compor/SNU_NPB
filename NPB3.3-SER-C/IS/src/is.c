@@ -478,6 +478,7 @@ void rank( int iteration )
 
 
 /*  Sort into appropriate bucket */
+//#pragma omp parallel for default(shared) private(i) // TODO not working
     for( i=0; i<NUM_KEYS; i++ )
     {
         key = key_array[i];
