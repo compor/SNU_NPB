@@ -33,6 +33,8 @@
 
 #include "header.h"
 
+//#define USE_OMP_LOCKS
+
 //------------------------------------------------------------------
 // Map values from mortar(tmor) to element(tx)
 //------------------------------------------------------------------
@@ -266,6 +268,11 @@ void transfb(double tmor[], double tx[])
 
   r_init(tmor, nmor, 0.0);
 
+#ifdef USE_OMP_LOCKS
+
+  #pragma omp parallel for default(shared) private(il,j,ig,i,col,ije2,ije1,ig4, \
+      ig3,ig2,ig1,nnje,il4,il3,il2,il1,iface,ie,ije,tmp,shift,temp,top,tmp1)
+#endif
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       // nnje=1 for conforming faces, nnje=2 for nonconforming faces
@@ -290,9 +297,21 @@ void transfb(double tmor[], double tx[])
       // sum the values from tx to tmor for these four local corners
       // only 1/3 of the value is summed, since there will be two duplicated
       // contributions from the other two faces sharing this vertex
+#ifdef USE_OMP_LOCKS
+      #pragma omp atomic
+#endif
       tmor[ig1] = tmor[ig1]+tx[il1]*third;
+#ifdef USE_OMP_LOCKS
+      #pragma omp atomic
+#endif
       tmor[ig2] = tmor[ig2]+tx[il2]*third;
+#ifdef USE_OMP_LOCKS
+      #pragma omp atomic
+#endif
       tmor[ig3] = tmor[ig3]+tx[il3]*third;
+#ifdef USE_OMP_LOCKS
+      #pragma omp atomic
+#endif
       tmor[ig4] = tmor[ig4]+tx[il4]*third;
 
       // for nonconforming faces
@@ -346,6 +365,9 @@ void transfb(double tmor[], double tx[])
               // contribution from another face sharing this edge.
 
               ig = idmo[ie][iface][ije2][ije1][col][v_end[ije2]];
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
               tmor[ig] = tmor[ig]+temp[ije1][col][v_end[ije2]]*0.5;
 
               // In each row of collocation points on a piece of mortar,
@@ -357,6 +379,9 @@ void transfb(double tmor[], double tx[])
                   tmp = tmp + qbnew[ije2][j][i-1] * temp[ije1][col][i];
                 }
                 ig = idmo[ie][iface][ije2][ije1][col][j];
+#ifdef USE_OMP_LOCKS
+                #pragma omp atomic
+#endif
                 tmor[ig] = tmor[ig]+tmp;
               }
             }
@@ -368,6 +393,9 @@ void transfb(double tmor[], double tx[])
 
             col = v_end[ije1];
             ig = idmo[ie][iface][ije2][ije1][col][v_end[ije2]];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+top[ije1][v_end[ije2]]*0.5;
             for (j = 0; j < LX1; j++) {
               tmp = 0.0;
@@ -377,7 +405,14 @@ void transfb(double tmor[], double tx[])
                 tmp1 = tmp1 + qbnew[ije2][j][i-1] * top[ije1][i];
               }
               ig = idmo[ie][iface][ije2][ije1][col][j];
-              tmor[ig] = tmor[ig]+tmp*0.5+tmp1;
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
+              tmor[ig] = tmor[ig]+tmp*0.5;
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
+              tmor[ig] = tmor[ig]+tmp1;
             }
           }
         }
@@ -390,6 +425,9 @@ void transfb(double tmor[], double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][col][j];
             ig = idmo[ie][iface][0][0][col][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+tx[il];
           }
         }
@@ -406,6 +444,9 @@ void transfb(double tmor[], double tx[])
                 tmp= tmp + qbnew[ije][j][i-1]*tx[il];
               }
               ig = idmo[ie][iface][ije][0][0][j];
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
               tmor[ig] = tmor[ig]+tmp*0.5;
             }
           }
@@ -415,6 +456,9 @@ void transfb(double tmor[], double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][0][j];
             ig = idmo[ie][iface][0][0][0][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+tx[il]*0.5;
           }
         }
@@ -429,6 +473,9 @@ void transfb(double tmor[], double tx[])
                 tmp = tmp + qbnew[ije][j][i-1]*tx[il];
               }
               ig = idmo[ie][iface][1][ije][j][LX1-1];
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
               tmor[ig] = tmor[ig]+tmp*0.5;
             }
           }
@@ -438,6 +485,9 @@ void transfb(double tmor[], double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][LX1-1];
             ig = idmo[ie][iface][0][0][j][LX1-1];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+tx[il]*0.5;
           }
         }
@@ -452,6 +502,9 @@ void transfb(double tmor[], double tx[])
                 tmp = tmp + qbnew[ije][j][i-1]*tx[il];
               }
               ig = idmo[ie][iface][ije][1][LX1-1][j];
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
               tmor[ig] = tmor[ig]+tmp*0.5;
             }
           }
@@ -461,6 +514,9 @@ void transfb(double tmor[], double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][LX1-1][j];
             ig = idmo[ie][iface][0][0][LX1-1][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+tx[il]*0.5;
           }
         }
@@ -475,6 +531,9 @@ void transfb(double tmor[], double tx[])
                 tmp = tmp + qbnew[ije][j][i-1]*tx[il];
               }
               ig = idmo[ie][iface][0][ije][j][0];
+#ifdef USE_OMP_LOCKS
+              #pragma omp atomic
+#endif
               tmor[ig] = tmor[ig]+tmp*0.5;
             }
           }
@@ -484,6 +543,9 @@ void transfb(double tmor[], double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][0];
             ig = idmo[ie][iface][0][0][j][0];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmor[ig] = tmor[ig]+tx[il]*0.5;
           }
         }
@@ -764,6 +826,10 @@ void transfb_c(double tx[])
 
   r_init(tmort, nmor, 0.0);
 
+#ifdef USE_OMP_LOCKS
+  #pragma omp parallel for default(shared) private(ie,iface,il1,il2, \
+                                       il3,il4,ig1,ig2,ig3,ig4,col,j,ig,il)
+#endif
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
       if (cbc[ie][iface] != 3) {
@@ -776,9 +842,21 @@ void transfb_c(double tx[])
         ig3 = idmo[ie][iface][0][1][LX1-1][0];
         ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
 
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig1] = tmort[ig1]+tx[il1]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig2] = tmort[ig2]+tx[il2]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig3] = tmort[ig3]+tx[il3]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig4] = tmort[ig4]+tx[il4]*third;
 
         for (col = 1; col < LX1-1; col++) {
@@ -793,6 +871,9 @@ void transfb_c(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][0][j];
             ig = idmo[ie][iface][0][0][0][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
           }
         }
@@ -801,6 +882,9 @@ void transfb_c(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][LX1-1];
             ig = idmo[ie][iface][0][0][j][LX1-1];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
           }
         }
@@ -809,6 +893,9 @@ void transfb_c(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][LX1-1][j];
             ig = idmo[ie][iface][0][0][LX1-1][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
           }
         }
@@ -817,6 +904,9 @@ void transfb_c(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][0];
             ig = idmo[ie][iface][0][0][j][0];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
           }
         }
@@ -839,6 +929,10 @@ void transfb_c_2(double tx[])
   r_init(tmort, nmor, 0.0);
   r_init(mormult, nmor, 0.0);
 
+#ifdef USE_OMP_LOCKS
+  #pragma omp parallel for default(shared) private(ie,iface,il1,il2, \
+                                       il3,il4,ig1,ig2,ig3,ig4,col,j,ig,il)
+#endif
   for (ie = 0; ie < nelt; ie++) {
     for (iface = 0; iface < NSIDES; iface++) {
 
@@ -852,20 +946,50 @@ void transfb_c_2(double tx[])
         ig3 = idmo[ie][iface][0][1][LX1-1][0];
         ig4 = idmo[ie][iface][1][1][LX1-1][LX1-1];
 
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig1] = tmort[ig1]+tx[il1]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig2] = tmort[ig2]+tx[il2]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig3] = tmort[ig3]+tx[il3]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         tmort[ig4] = tmort[ig4]+tx[il4]*third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         mormult[ig1] = mormult[ig1]+third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         mormult[ig2] = mormult[ig2]+third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         mormult[ig3] = mormult[ig3]+third;
+#ifdef USE_OMP_LOCKS
+        #pragma omp atomic
+#endif
         mormult[ig4] = mormult[ig4]+third;
 
         for (col = 1; col < LX1-1; col++) {
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][col][j];
             ig = idmo[ie][iface][0][0][col][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             mormult[ig] = mormult[ig]+1.0;
           }
         }
@@ -874,7 +998,13 @@ void transfb_c_2(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][0][j];
             ig = idmo[ie][iface][0][0][0][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             mormult[ig] = mormult[ig]+0.5;
           }
         }
@@ -883,7 +1013,13 @@ void transfb_c_2(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][LX1-1];
             ig = idmo[ie][iface][0][0][j][LX1-1];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             mormult[ig] = mormult[ig]+0.5;
           }
         }
@@ -892,7 +1028,13 @@ void transfb_c_2(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][LX1-1][j];
             ig = idmo[ie][iface][0][0][LX1-1][j];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             mormult[ig] = mormult[ig]+0.5;
           }
         }
@@ -901,7 +1043,13 @@ void transfb_c_2(double tx[])
           for (j = 1; j < LX1-1; j++) {
             il = idel[ie][iface][j][0];
             ig = idmo[ie][iface][0][0][j][0];
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             tmort[ig] = tmort[ig]+tx[il]*0.5;
+#ifdef USE_OMP_LOCKS
+            #pragma omp atomic
+#endif
             mormult[ig] = mormult[ig]+0.5;
           }
         }
