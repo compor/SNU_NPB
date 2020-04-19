@@ -194,6 +194,7 @@ int main()
     //--------------------------------------------------------------------
     if (timers_enabled) timer_start(1);
 
+	#pragma omp parallel for default(shared) private(k,kk,t1,t2,t3,t4,i,ik,x1,x2,l) reduction(+:sx,sy)
     for (i = 0; i < NK; i++) {
       x1 = 2.0 * x[2*i] - 1.0;
       x2 = 2.0 * x[2*i+1] - 1.0;
