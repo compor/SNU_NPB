@@ -732,6 +732,7 @@ static void find_refine(logical *if_refine)
 
   *if_refine = false;
 
+  #pragma omp parallel for default(shared) private(iel) shared(if_refine)
   for (iel = 0; iel < nelt; iel++) {
     ich[iel] = 0;
     if (iftouch(iel)) {

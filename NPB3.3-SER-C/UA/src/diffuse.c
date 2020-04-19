@@ -72,6 +72,7 @@ void diffusion(logical ifmortar)
     }
   }
 
+  #pragma omp parallel for default(shared) private(im) reduction(+:rho1)
   for (im = 0; im < nmor; im++) {
     pmorx[im] = dpcmor[im]*rmor[im];
     rho1      = rho1 + rmor[im]*pmorx[im];
@@ -97,6 +98,7 @@ void diffusion(logical ifmortar)
         }
       }
 
+      #pragma omp parallel for default(shared) private(im) reduction(+:rho_aux)
       for (im = 0; im < nmor; im++) {
         ppmor[im] = dpcmor[im]*rmor[im];
         rho_aux = rho_aux + rmor[im]*ppmor[im];
@@ -150,6 +152,7 @@ void diffusion(logical ifmortar)
       }
     }
 
+    #pragma omp parallel for default(shared) private(im) reduction(+:cona)
     for (im = 0; im < nmor; im++) {
       ppmor[im] = ppmor[im]*tmmor[im];
       cona = cona + pmorx[im]*ppmor[im];
