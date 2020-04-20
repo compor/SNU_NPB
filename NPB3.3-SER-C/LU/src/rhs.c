@@ -34,6 +34,8 @@
 #include "applu.incl"
 #include "timers.h"
 
+#define USE_OMP_NOWAIT
+
 //---------------------------------------------------------------------
 // compute the right hand sides
 //---------------------------------------------------------------------
@@ -81,7 +83,11 @@ void rhs()
   //---------------------------------------------------------------------
   // xi-direction flux differences
   //---------------------------------------------------------------------
+#ifdef USE_OMP_NOWAIT
   #pragma omp for schedule(static) nowait
+#else
+  #pragma omp for schedule(static)
+#endif
   for (k = 1; k < nz - 1; k++) {
     for (j = jst; j < jend; j++) {
       for (i = 0; i < nx; i++) {
@@ -339,7 +345,11 @@ void rhs()
   //---------------------------------------------------------------------
   // zeta-direction flux differences
   //---------------------------------------------------------------------
+#ifdef USE_OMP_NOWAIT
   #pragma omp for schedule(static) nowait
+#else
+  #pragma omp for schedule(static)
+#endif
   for (j = jst; j < jend; j++) {
     for (i = ist; i < iend; i++) {
       for (k = 0; k < nz; k++) {

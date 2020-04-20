@@ -34,6 +34,8 @@
 #include "header.h"
 #include <math.h>
 
+#define USE_OMP_NOWAIT
+
 //---------------------------------------------------------------------
 // this function computes the norm of the difference between the
 // computed solution and the exact solution
@@ -54,7 +56,11 @@ void error_norm(double rms[5])
     for (m = 0; m < 5; m++) {
       rms_local[m] = 0.0;
     }
-    #pragma omp for nowait
+#ifdef USE_OMP_NOWAIT
+  #pragma omp for nowait
+#else
+  #pragma omp for
+#endif
   for (k = 0; k <= grid_points[2]-1; k++) {
     zeta = (double)k * dnzm1;
     for (j = 0; j <= grid_points[1]-1; j++) {
@@ -101,17 +107,21 @@ void rhs_norm(double rms[5])
     for (m = 0; m < 5; m++) {
       rms_local[m] = 0.0;
     }
-    #pragma omp for nowait
+#ifdef USE_OMP_NOWAIT
+  #pragma omp for nowait
+#else
+  #pragma omp for
+#endif
   for (k = 1; k <= nz2; k++) {
     for (j = 1; j <= ny2; j++) {
       for (i = 1; i <= nx2; i++) {
         for (m = 0; m < 5; m++) {
           add = rhs[k][j][i][m];
             rms_local[m] = rms_local[m] + add*add;
-        } 
+        }
       }
-    } 
-  } 
+    }
+  }
     for (m = 0; m < 5; m++) {
       #pragma omp atomic
       rms[m] += rms_local[m];
